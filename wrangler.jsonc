@@ -1,6 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "minilytics",
+  "name": "overview",
+  // Live deploy: numbers.margins.me. Kept off workers.dev like the original manual deploy.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "numbers.margins.me", "custom_domain": true }],
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-09-01",
   "observability": { "enabled": true },
@@ -15,8 +19,8 @@
     {
       "binding": "DB",
       "database_name": "minilytics",
-      // Replace with the id printed by `npx wrangler d1 create minilytics`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Live D1 "overview". database_name stays "minilytics" so package.json scripts work unchanged; the id decides the target.
+      "database_id": "b42fb130-1b47-419f-b90c-37e9cc31e7a4",
       "migrations_dir": "migrations"
     }
   ]
