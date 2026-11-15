@@ -137,8 +137,7 @@ export function bucketSql(col: string, g: Granularity, offsetMs: number): string
 export function bucketLabels(range: Range, offsetMs: number): string[] {
   const labels: string[] = [];
   const seen = new Set<string>();
-  const step = range.granularity === 'hour' ? HOUR : DAY;
-  for (let t = range.from; t < range.to; t += step) {
+  const add = (t: number) => {
     const d = new Date(t + offsetMs);
     let label: string;
     const iso = d.toISOString();
@@ -155,6 +154,11 @@ export function bucketLabels(range: Range, offsetMs: number): string[] {
       seen.add(label);
       labels.push(label);
     }
-  }
+  };
+  const step = range.granularity === 'hour' ? HOUR : DAY;
+  for (let t = range.from; t < range.to; t += step) add(t);
+  // A rolling range (e.g. last 24 hours at 15:30) ends partway through a bucket: include that bucket too,
+  // or what happened since 15:00 is counted in the totals but missing from the chart.
+  if (range.to > range.from) add(range.to - 1);
   return labels;
 }

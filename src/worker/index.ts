@@ -18,7 +18,7 @@ import { billingWebhook, checkout, planInfo } from './billing';
 import { randomId } from './lib/crypto';
 import { handleDodoWebhook, handleGoalApi, handlePaymentApi, handleStripeWebhook, learnDodoProducts, rematchPayments } from './payments';
 import { rememberOwnerDevice } from './owner';
-import { breakdown, customers, funnel, makeCtx, overview, realtime, sparklines, visitorProfile, visitors, type FunnelStep } from './stats';
+import { breakdown, customers, funnel, makeCtx, notBot, overview, realtime, sparklines, visitorProfile, visitors, type FunnelStep } from './stats';
 
 import { collectBot, botStats } from './bots';
 
@@ -136,7 +136,7 @@ app.get('/api/sites', async (c) => {
     c.env.DB.prepare(
       `SELECT site_id, COUNT(DISTINCT visitor_id) AS visitors,
               COUNT(DISTINCT CASE WHEN last_seen_at > ? THEN visitor_id END) AS online
-       FROM sessions WHERE started_at > ? GROUP BY site_id`,
+       FROM sessions s WHERE started_at > ? AND ${notBot()} GROUP BY site_id`,
     ).bind(now - 5 * 60_000, now - 86_400_000),
   ]);
   const by = new Map((stats.results as any[]).map((r) => [r.site_id, r]));
