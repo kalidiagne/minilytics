@@ -46,28 +46,30 @@ function Goals({ totalVisitors }: { totalVisitors: number }) {
       </div>
     );
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-left text-stone-500">
-          <th className="px-3 pb-2 font-medium">Goal</th>
-          <th className="pb-2 text-right font-medium">Visitors</th>
-          <th className="pb-2 text-right font-medium">Completions</th>
-          <th className="pb-2 text-right font-medium">Conversion</th>
-          <th className="px-3 pb-2 text-right font-medium">Revenue</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((g) => (
-          <tr key={g.label} className="cursor-pointer border-t border-stone-100 hover:bg-stone-50" onClick={() => addFilter('goal', g.label ?? '')} title="Filter by visitors who completed this goal">
-            <td className="px-3 py-2.5 font-medium">🎯 {g.label}</td>
-            <td className="py-2.5 text-right">{fmtNumber(g.visitors)}</td>
-            <td className="py-2.5 text-right">{fmtNumber(g.pageviews ?? 0)}</td>
-            <td className="py-2.5 text-right">{totalVisitors ? fmtPct(g.visitors / totalVisitors, 1) : '—'}</td>
-            <td className="px-3 py-2.5 text-right">{money(g.revenue)}</td>
+    <div className="overflow-x-auto">
+      <table className="w-full whitespace-nowrap text-sm">
+        <thead>
+          <tr className="text-left text-stone-500">
+            <th className="px-3 pb-2 font-medium">Goal</th>
+            <th className="pb-2 pl-3 text-right font-medium">Visitors</th>
+            <th className="pb-2 pl-3 text-right font-medium">Completions</th>
+            <th className="pb-2 pl-3 text-right font-medium">Conversion</th>
+            <th className="px-3 pb-2 text-right font-medium">Revenue</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {data.map((g) => (
+            <tr key={g.label} className="cursor-pointer border-t border-stone-100 hover:bg-stone-50" onClick={() => addFilter('goal', g.label ?? '')} title="Filter by visitors who completed this goal">
+              <td className="px-3 py-2.5 font-medium">🎯 {g.label}</td>
+              <td className="py-2.5 pl-3 text-right">{fmtNumber(g.visitors)}</td>
+              <td className="py-2.5 pl-3 text-right">{fmtNumber(g.pageviews ?? 0)}</td>
+              <td className="py-2.5 pl-3 text-right">{totalVisitors ? fmtPct(g.visitors / totalVisitors, 1) : '—'}</td>
+              <td className="px-3 py-2.5 text-right">{money(g.revenue)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

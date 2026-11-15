@@ -130,7 +130,7 @@ export function BotAnalytics() {
       <div role="group" aria-label="Crawler category" className="flex max-w-full flex-wrap gap-1 rounded-2xl bg-stone-100/70 p-1">
         {GROUPS.filter(g => g.key !== 'other' || (options?.counts.other ?? 0) > 0).map(g => <button key={g.key}
           aria-pressed={active === g.key} onClick={() => { setActive(g.key); setSelectedBots(null); setSelectedPages(null); setMenu(null); }}
-          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${active === g.key ? 'bg-white text-ink shadow-sm ring-1 ring-stone-200' : 'text-stone-500 hover:text-ink'}`}>
+          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${active === g.key ? 'bg-surface text-ink shadow-sm ring-1 ring-stone-200' : 'text-stone-500 hover:text-ink'}`}>
           <CategoryIcon type={g.key} />{g.label}<span className="tabular-nums text-stone-400">{options ? fmtNumber(options.counts[g.key]) : '—'}</span>
         </button>)}
       </div>
@@ -143,7 +143,7 @@ export function BotAnalytics() {
         <button ref={pagesButton} aria-pressed={view === 'pages'} aria-expanded={menu === 'pages'} aria-haspopup="dialog" onClick={() => open('pages')}
           title={view === 'pages' ? 'Filter pages' : 'Group by pages'}
           className={`rounded-xl border border-dashed px-3 py-2 text-sm font-medium ${view === 'pages' ? 'border-stone-400 text-ink' : 'border-transparent text-stone-400 hover:text-ink'}`}>Pages{selectedPages !== null && <span className="ml-2 text-xs text-stone-400">{selectedPages.length}</span>}</button>
-        {menu && <div role="dialog" aria-label={menu === 'pages' ? 'Page filters' : 'Crawler filters'} className="absolute right-0 top-full z-30 mt-3 w-[min(360px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl">
+        {menu && <div role="dialog" aria-label={menu === 'pages' ? 'Page filters' : 'Crawler filters'} className="absolute right-0 top-full z-30 mt-3 w-[min(360px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-stone-200 bg-surface shadow-xl">
           <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3 text-sm font-medium"><span>{menu === 'pages' ? 'Filter pages' : 'Filter crawlers'}</span><button aria-label="Close filters" onClick={() => setMenu(null)} className="px-2 text-stone-400">×</button></div>
           {menu === 'pages' && <div className="border-b border-stone-100 p-3"><input aria-label="Search pages" placeholder="Search (llms.txt, /blog/*)" className="w-full rounded-lg bg-stone-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-300" value={search} onChange={e => setSearch(e.target.value)} /></div>}
           <div className="max-h-72 overflow-y-auto p-2">{filteredOptions.map(o => <label key={o.name} className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-3 hover:bg-stone-50">
