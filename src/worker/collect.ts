@@ -4,7 +4,9 @@ import { ipBucket, siteOwnerActive } from './auth';
 import { getSite, type AppEnv, type Site } from './env';
 import { cookielessIds } from './cookieless';
 import { clientIp, isOwnerVisit } from './owner';
+import { isDatacenter } from './lib/networks';
 import { isBot, parseUA } from './lib/ua';
+import { FLAG_BURST_SQL } from './stats';
 import { creditedSessionSql, dodoProductOfLink, learnDodoProducts } from './payments';
 
 const TYPES = new Set(['pageview', 'goal', 'outbound', 'ping', 'identify']);
@@ -96,10 +98,27 @@ export async function handleEvent(c: Context<AppEnv>) {
     // Never trust ids sent along in this mode: they always come from the daily hash.
     Object.assign(body, await cookielessIds(c.env.DB, site.id, clientIp(c), ua, now));
   }
-  await ingest(c.env.DB, site, body, url, ua, geoOf(c), now);
+  await ingest(c.env.DB, site, body, url, ua, geoOf(c), now, botReason(c));
   // The tracker keeps these in memory only, to tag checkouts (window.minilytics.attribution()).
   if (cookieless) return c.json({ vid: body.vid, sid: body.sid }, 202);
   return c.body(null, 202);
+}
+
+/**
+ * Is the tracker proxied through the site's own domain (to dodge ad blockers)? Then the request comes from the
+ * proxy's server, so its network says nothing about the visitor.
+ */
+function isProxied(c: Context<AppEnv>): boolean {
+  if (c.req.header('x-vercel-ip-country')) return true;
+  const forwarded = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+  return !!forwarded && forwarded !== c.req.header('cf-connecting-ip');
+}
+
+/** People rarely browse from cloud and hosting networks; scrapers and headless browsers usually do. */
+function botReason(c: Context<AppEnv>): 'datacenter' | null {
+  if (isProxied(c)) return null;
+  const cf = (c.req.raw as { cf?: IncomingRequestCfProperties }).cf;
+  return isDatacenter(cf?.asn as number | undefined) ? 'datacenter' : null;
 }
 
 export interface Geo {
@@ -156,6 +175,7 @@ export async function ingest(
   ua: string,
   geo: Geo,
   now: number,
+  bot: 'datacenter' | null = null,
 ) {
   const path = normalizePath(url.pathname);
   const { t, vid, sid } = body;
@@ -171,11 +191,14 @@ export async function ingest(
 
   if (t === 'identify') {
     const p = body.p ?? {};
+    // Fill-only: the first value stored for each field wins and later identify() calls can't rewrite it.
+    // This endpoint is public, and payments are matched to visitors by email, so identity must not be
+    // overwritable (payments already fill these same columns the same way).
     await db.batch([
       db.prepare('INSERT OR IGNORE INTO visitors (site_id, id, first_seen) VALUES (?, ?, ?)').bind(site.id, vid, now),
       db
         .prepare(
-          'UPDATE visitors SET user_id = COALESCE(?, user_id), email = COALESCE(?, email), name = COALESCE(?, name) WHERE site_id = ? AND id = ?',
+          'UPDATE visitors SET user_id = COALESCE(user_id, ?), email = COALESCE(email, ?), name = COALESCE(name, ?) WHERE site_id = ? AND id = ?',
         )
         .bind(clip(p.user_id, 128), clip(p.email, 200)?.toLowerCase() ?? null, clip(p.name, 128), site.id, vid),
     ]);
@@ -189,7 +212,7 @@ export async function ingest(
 
   const stmts: D1PreparedStatement[] = [];
   if (!existing) {
-    stmts.push(...newSession(db, site, body, url, path, ua, geo, now));
+    stmts.push(...newSession(db, site, body, url, path, ua, geo, now, bot));
   }
 
   if (t === 'pageview') {
@@ -202,6 +225,8 @@ export async function ingest(
     }
     stmts.push(insertEvent(db, site.id, sid, vid, now, 'pageview', null, path, null));
     stmts.push(...claimPayment(db, site.id, vid, url, now));
+    // Last, so it sees this session's first pageview.
+    if (!existing) stmts.push(db.prepare(FLAG_BURST_SQL).bind(site.id, now));
   } else if (t === 'goal') {
     const name = clip(body.n, 64);
     if (!name) return;
@@ -282,6 +307,7 @@ function newSession(
   ua: string,
   geo: Geo,
   now: number,
+  bot: 'datacenter' | null,
 ): D1PreparedStatement[] {
   let referrer: string | null = null;
   let referrerDomain: string | null = null;
@@ -318,8 +344,8 @@ function newSession(
       .prepare(
         `INSERT OR IGNORE INTO sessions (site_id, id, visitor_id, started_at, last_seen_at, pageviews, hostname, entry_page, exit_page,
           referrer, referrer_domain, source, channel, utm_source, utm_medium, utm_campaign, utm_term, utm_content, ref,
-          country, region, city, browser, os, device, lat, lon)
-         VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          country, region, city, browser, os, device, lat, lon, bot)
+         VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         site.id,
@@ -348,6 +374,7 @@ function newSession(
         device,
         geo.lat,
         geo.lon,
+        bot,
       ),
     // Separate statement so concurrent first events (pageview + goal racing) never double count.
     ...(pageviews

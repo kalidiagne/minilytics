@@ -68,16 +68,22 @@ function filterSql(f: Filters): { sql: string; params: unknown[] } {
 const hasFilters = (f: Filters) => Object.keys(f).length > 0;
 
 // A bounce with no time on page, no referrer, no UTM and no goal: what a headless bot leaves behind.
-const BLANK = (a: string) => `${a}.pageviews = 1 AND ${a}.duration = 0 AND ${a}.referrer IS NULL AND ${a}.utm_source IS NULL AND ${a}.goals = 0`;
+export const BLANK = (a: string) =>
+  `${a}.pageviews = 1 AND ${a}.duration = 0 AND ${a}.referrer IS NULL AND ${a}.utm_source IS NULL AND ${a}.goals = 0`;
 export const BURST_WINDOW_MS = 60_000;
 export const BURST_MIN = 3;
-/** Excludes session `a` when it is blank and arrived in a burst: 3+ blank sessions within a minute of each other.
- * One blank session on its own is a real (if quick) visitor and stays.
- * ponytail: computed at query time (one indexed range scan per blank session), so it applies to old data too and
- * costs nothing to undo; materialize a flag column from a cron if D1 row reads ever matter. */
-export const notBurst = (a = 's') =>
-  `NOT (${BLANK(a)} AND (SELECT COUNT(*) FROM sessions bb WHERE bb.site_id = ${a}.site_id
-     AND bb.started_at BETWEEN ${a}.started_at - ${BURST_WINDOW_MS} AND ${a}.started_at + ${BURST_WINDOW_MS} AND ${BLANK('bb')}) >= ${BURST_MIN})`;
+
+/** Run when a session starts: if 3+ blank sessions started on the site in the last minute, flag them all as a burst.
+ * One blank session on its own is a real (if quick) visitor and stays. Binds: site id, now. */
+export const FLAG_BURST_SQL = `UPDATE sessions SET bot = 'burst'
+  WHERE site_id = ?1 AND started_at BETWEEN ?2 - ${BURST_WINDOW_MS} AND ?2 AND bot IS NULL AND ${BLANK('sessions')}
+    AND (SELECT COUNT(*) FROM sessions bb
+         WHERE bb.site_id = ?1 AND bb.started_at BETWEEN ?2 - ${BURST_WINDOW_MS} AND ?2 AND ${BLANK('bb')}) >= ${BURST_MIN}`;
+
+/** Leaves out likely bots (see migrations/0011_session_bot.sql): a burst session while it stays blank, and a
+ * datacenter session unless it completed a goal. */
+export const notBot = (a = 's') =>
+  `(${a}.bot IS NULL OR (${a}.bot = 'burst' AND NOT (${BLANK(a)})) OR (${a}.bot = 'datacenter' AND ${a}.goals > 0))`;
 const EVENT_SESSION = `JOIN sessions s ON s.site_id = e.site_id AND s.id = e.session_id`;
 
 interface Ctx {
@@ -98,7 +104,7 @@ export function makeCtx(c: Context<AppEnv>): Ctx {
 function sessionsWhere(ctx: Ctx, from = ctx.range.from, to = ctx.range.to) {
   const f = filterSql(ctx.filters);
   return {
-    sql: `s.site_id = ? AND s.started_at >= ? AND s.started_at < ? AND ${notBurst()}${f.sql}`,
+    sql: `s.site_id = ? AND s.started_at >= ? AND s.started_at < ? AND ${notBot()}${f.sql}`,
     params: [ctx.site.id, from, to, ...f.params],
   };
 }
@@ -282,7 +288,7 @@ export async function breakdown(ctx: Ctx, dim: string, limit = 100): Promise<Bre
   if (dim === 'page') {
     const f = filterSql(ctx.filters);
     const params = [ctx.site.id, ctx.range.from, ctx.range.to, ...f.params];
-    const base = `FROM events e ${EVENT_SESSION} WHERE e.site_id = ? AND e.type = 'pageview' AND e.ts >= ? AND e.ts < ? AND ${notBurst()}${f.sql}`;
+    const base = `FROM events e ${EVENT_SESSION} WHERE e.site_id = ? AND e.type = 'pageview' AND e.ts >= ? AND e.ts < ? AND ${notBot()}${f.sql}`;
     const [v, r] = await db.batch([
       db
         .prepare(
@@ -307,7 +313,7 @@ export async function breakdown(ctx: Ctx, dim: string, limit = 100): Promise<Bre
     const type = dim === 'goal' ? 'goal' : 'outbound';
     const f = filterSql(ctx.filters);
     const params = [ctx.site.id, type, ctx.range.from, ctx.range.to, ...f.params];
-    const base = `FROM events e ${EVENT_SESSION} WHERE e.site_id = ? AND e.type = ? AND e.ts >= ? AND e.ts < ? AND ${notBurst()}${f.sql}`;
+    const base = `FROM events e ${EVENT_SESSION} WHERE e.site_id = ? AND e.type = ? AND e.ts >= ? AND e.ts < ? AND ${notBot()}${f.sql}`;
     const [v, r] = await db.batch([
       db
         .prepare(
@@ -432,7 +438,7 @@ export async function funnel(ctx: Ctx, steps: FunnelStep[]) {
     await ctx.db
       .prepare(
         `SELECT e.visitor_id AS v, e.ts, e.type, e.name, e.path FROM events e ${EVENT_SESSION}
-         WHERE e.site_id = ? AND e.ts >= ? AND e.ts < ? AND (${conds.join(' OR ')}) AND ${notBurst()}${f.sql}
+         WHERE e.site_id = ? AND e.ts >= ? AND e.ts < ? AND (${conds.join(' OR ')}) AND ${notBot()}${f.sql}
          ORDER BY e.ts LIMIT 100000`,
       )
       .bind(ctx.site.id, ctx.range.from, ctx.range.to, ...params, ...f.params)
@@ -555,7 +561,7 @@ export async function sparklines(db: D1Database, siteIds: string[], period: stri
 
   const [totals, pay, online, vs, rs] = await db.batch([
     db
-      .prepare(`SELECT site_id, COUNT(DISTINCT visitor_id) AS v FROM sessions s WHERE site_id IN (${ids}) AND started_at >= ? AND ${notBurst()} GROUP BY site_id`)
+      .prepare(`SELECT site_id, COUNT(DISTINCT visitor_id) AS v FROM sessions s WHERE site_id IN (${ids}) AND started_at >= ? AND ${notBot()} GROUP BY site_id`)
       .bind(...siteIds, from),
     db.prepare(`SELECT site_id, SUM(amount) AS r FROM payments WHERE site_id IN (${ids}) AND ts >= ? GROUP BY site_id`).bind(...siteIds, from),
     db
@@ -567,7 +573,7 @@ export async function sparklines(db: D1Database, siteIds: string[], period: stri
     db
       .prepare(
         `SELECT site_id, ${bucket('started_at')} AS b, COUNT(DISTINCT visitor_id) AS v FROM sessions s
-         WHERE site_id IN (${ids}) AND started_at >= ? AND ${notBurst()} GROUP BY site_id, b`,
+         WHERE site_id IN (${ids}) AND started_at >= ? AND ${notBot()} GROUP BY site_id, b`,
       )
       .bind(...siteIds, from),
     db
