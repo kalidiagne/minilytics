@@ -77,6 +77,12 @@ describe('time ranges', () => {
     expect(r.from).toBe(startOfDay(now, 'UTC') - 29 * 86_400_000);
     expect(bucketLabels(r, 0)).toHaveLength(30);
   });
+  it('last 24 hours includes the current, partial hour', () => {
+    const at = Date.UTC(2026, 10, 15, 15, 30);
+    const labels = bucketLabels(resolveRange({ period: '24h' }, 'UTC', 0, at), 0);
+    expect(labels.at(-1)).toBe('2026-11-15T15:00');
+    expect(labels[0]).toBe('2026-11-14T15:00');
+  });
   it('custom ranges include the whole last day', () => {
     const r = resolveRange({ period: 'custom', from: '2026-10-01', to: '2026-10-07' }, 'UTC', 0, now);
     expect(r.to - r.from).toBe(7 * 86_400_000);

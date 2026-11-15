@@ -98,12 +98,6 @@ export async function botStats(c: Context<AppEnv>) {
       GROUP BY bucket, path ORDER BY bucket`).bind(...params, ...params),
   ]);
   const labels = bucketLabels(range, offset);
-  // A rolling range can end partway through a bucket: include that final bucket too.
-  if (range.to > range.from) {
-    for (const label of bucketLabels({ ...range, from: range.to - 1 }, offset)) {
-      if (!labels.includes(label)) labels.push(label);
-    }
-  }
   return c.json({ range, labels, pageTraffic: pageTraffic.results, traffic: traffic.results, pageBots: pageBots.results,
     total: total.results[0], bots: bots.results, pages: pages.results, recent: recent.results });
 }
