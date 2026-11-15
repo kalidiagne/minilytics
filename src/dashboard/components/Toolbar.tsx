@@ -49,7 +49,7 @@ export function Dropdown({ button, children, align = 'left', className = '' }: {
   }, [open]);
   return (
     <div className={`relative flex ${className}`} ref={ref}>
-      <div className="flex" onClick={() => setOpen((o) => !o)}>
+      <div className="flex min-w-0 flex-1" onClick={() => setOpen((o) => !o)}>
         {button}
       </div>
       {open && (
@@ -125,11 +125,13 @@ export function Toolbar({
   return (
     <div className={`flex flex-wrap items-center gap-2 ${compact ? 'max-sm:gap-1.5' : ''}`}>
       <BackButton to="/" label="" className={`btn ${sq} ${anim} justify-center px-0`} />
+      {/* ponytail: on phones the site picker takes the spare width of the first row and its name truncates */}
       <Dropdown
+        className="max-sm:min-w-0 max-sm:flex-1"
         button={
-          <button className={`btn ${h} ${anim} ${compact ? 'px-4 max-sm:gap-1.5 max-sm:px-2.5' : 'px-4'}`}>
+          <button className={`btn ${h} ${anim} max-sm:w-full max-sm:min-w-0 max-sm:justify-start ${compact ? 'px-4 max-sm:gap-1.5 max-sm:px-2.5' : 'px-4'}`}>
             <Favicon domain={site.domain} size={compact ? 18 : 22} />
-            <span className={`truncate font-semibold ${compact ? 'max-w-[180px] max-sm:max-w-[96px]' : 'max-w-[180px]'}`}>{site.name}</span>
+            <span className="min-w-0 truncate font-semibold sm:max-w-[180px]">{site.name}</span>
             <Chevron />
           </button>
         }
@@ -161,6 +163,8 @@ export function Toolbar({
         )}
       </Dropdown>
 
+      {/* Phones: line break so the date controls get a row of their own (collapsed into one row once sticky). */}
+      {!compact && <div className="h-0 basis-full sm:hidden max-sm:order-last" />}
       <div className={`flex ${h} ${anim} items-stretch justify-between rounded-xl border border-stone-200 bg-surface shadow-card ${compact ? '' : 'max-sm:order-last max-sm:flex-1'}`}>
         <button className={`rounded-l-xl px-3 text-xl text-stone-500 hover:bg-stone-50 ${secondary}`} onClick={() => shift(-1)} aria-label="Previous period">
           ‹
@@ -168,7 +172,7 @@ export function Toolbar({
         <Dropdown
           align={compact ? 'right' : 'left'}
           button={
-            <button className={`flex h-full items-center gap-2 border-x border-stone-200 px-4 font-medium hover:bg-stone-50 ${compact ? 'max-sm:rounded-xl max-sm:border-x-0' : ''}`}>
+            <button className={`flex h-full items-center gap-2 whitespace-nowrap border-x border-stone-200 px-4 font-medium hover:bg-stone-50 ${compact ? 'max-sm:rounded-xl max-sm:border-x-0' : ''}`}>
               {label} <Chevron />
             </button>
           }
@@ -242,7 +246,7 @@ export function Toolbar({
       </div>
 
       <button className={`btn ${h} ${anim} px-4 ${secondary}`} onClick={onLive} title="Live map (M)">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" /> Live
+        <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" /> <span className="max-sm:sr-only">Live</span>
       </button>
 
       <button className={`btn ${sq} ${anim} px-0 ${secondary}`} onClick={onRefresh} aria-label="Refresh">
@@ -252,7 +256,7 @@ export function Toolbar({
         </svg>
       </button>
 
-      <ThemeToggle className={`btn ${sq} ${anim} px-0 max-sm:order-last ${secondary}`} />
+      <ThemeToggle className={`btn ${sq} ${anim} px-0 ${secondary}`} />
     </div>
   );
 }
