@@ -80,10 +80,13 @@ export const FLAG_BURST_SQL = `UPDATE sessions SET bot = 'burst'
     AND (SELECT COUNT(*) FROM sessions bb
          WHERE bb.site_id = ?1 AND bb.started_at BETWEEN ?2 - ${BURST_WINDOW_MS} AND ?2 AND ${BLANK('bb')}) >= ${BURST_MIN}`;
 
+/** Engaged time (ms) after which a datacenter visit counts as a person, e.g. someone on a VPN hosted in a cloud. */
+export const DATACENTER_ENGAGED_MS = 10_000;
+
 /** Leaves out likely bots (see migrations/0011_session_bot.sql): a burst session while it stays blank, and a
- * datacenter session unless it completed a goal. */
+ * datacenter session unless it completed a goal or stayed engaged for 10s+. */
 export const notBot = (a = 's') =>
-  `(${a}.bot IS NULL OR (${a}.bot = 'burst' AND NOT (${BLANK(a)})) OR (${a}.bot = 'datacenter' AND ${a}.goals > 0))`;
+  `(${a}.bot IS NULL OR (${a}.bot = 'burst' AND NOT (${BLANK(a)})) OR (${a}.bot = 'datacenter' AND (${a}.goals > 0 OR ${a}.duration >= ${DATACENTER_ENGAGED_MS})))`;
 const EVENT_SESSION = `JOIN sessions s ON s.site_id = e.site_id AND s.id = e.session_id`;
 
 interface Ctx {

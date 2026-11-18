@@ -35,9 +35,10 @@ function scenario(arrive: (id: string, at: number, o?: S) => void) {
   arrive('lone', 5_000_000); arrive('pair1', 9_000_000); arrive('pair2', 9_040_000); arrive('pair3', 9_070_000);
   // Bursts are counted per site.
   arrive('other1', 1_000_000, { site: 'b' }); arrive('other2', 1_000_000, { site: 'b' });
-  // Datacenter visits are hidden unless they complete a goal.
-  arrive('dc', 2_000_000, { bot: 'datacenter', pageviews: 4, duration: 30 });
+  // Datacenter visits are hidden unless they complete a goal or stay engaged 10s+ (duration is in ms).
+  arrive('dc', 2_000_000, { bot: 'datacenter', pageviews: 4, duration: 1_200 });
   arrive('dcgoal', 2_000_000, { bot: 'datacenter', goals: 1 });
+  arrive('dcread', 2_000_000, { bot: 'datacenter', duration: 15_000 });
 }
 
 describe('bot sessions', () => {
@@ -45,7 +46,7 @@ describe('bot sessions', () => {
     const { arrive, kept, flagged } = setup();
     scenario(arrive);
     expect(flagged()).toEqual(['b1', 'b2', 'b3']);
-    expect(kept()).toEqual(['browse', 'dcgoal', 'goal', 'lone', 'other1', 'other2', 'pair1', 'pair2', 'pair3', 'ref', 'utm']);
+    expect(kept()).toEqual(['browse', 'dcgoal', 'dcread', 'goal', 'lone', 'other1', 'other2', 'pair1', 'pair2', 'pair3', 'ref', 'utm']);
   });
 
   it('counts a burst session again once it does something', () => {

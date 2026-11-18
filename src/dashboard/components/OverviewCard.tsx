@@ -69,7 +69,15 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
       </div>
 
       <div className="h-[340px] px-2 pb-3 pt-6 sm:px-4">
-        {data && (
+        {data && hidden.visitors && hidden.revenue && (
+          <button
+            className="flex h-full w-full items-center justify-center text-sm text-stone-400 hover:text-stone-600"
+            onClick={() => setHidden({ visitors: false, revenue: false })}
+          >
+            Visitors and revenue are hidden. Click to show them.
+          </button>
+        )}
+        {data && !(hidden.visitors && hidden.revenue) && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data.series} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
               <defs>
