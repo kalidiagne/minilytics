@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BackButton } from '../components/BackButton';
 import { navigate } from '../App';
 import { Favicon } from '../components/Icons';
@@ -328,8 +328,13 @@ const TABS: { id: SettingsTab; label: string }[] = [
 /** One row of the setup checklist: a status line that opens to its instructions. ?step=<id> opens it on load. */
 function CheckStep({ id, title, done, status, children }: { id: string; title: string; done?: boolean; status: string; children: ReactNode }) {
   const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).get('step') === id);
+  const ref = useRef<HTMLDivElement>(null);
+  // Scroll to a step opened from a link once, not on every re-render.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('step') === id) ref.current?.scrollIntoView({ block: 'start' });
+  }, [id]);
   return (
-    <div id={`step-${id}`} ref={(el) => { if (el && open && new URLSearchParams(window.location.search).get('step') === id) el.scrollIntoView({ block: 'start' }); }}>
+    <div id={`step-${id}`} ref={ref}>
       <button className="flex min-h-[64px] w-full items-center gap-4 px-6 py-4 text-left hover:bg-stone-50" onClick={() => setOpen(!open)} aria-expanded={open}>
         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${done ? 'bg-emerald-800 text-white' : 'border-2 border-stone-300'}`}>
           {done && (

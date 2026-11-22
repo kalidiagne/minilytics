@@ -186,7 +186,10 @@ export function Dashboard({ siteId }: { siteId: string }) {
         </div>
 
         <div className="mt-5">
-          <GoalsPanel totalVisitors={overview?.current.visitors ?? 0} />
+          <GoalsPanel
+            totalVisitors={overview?.current.visitors ?? 0}
+            paid={!!(site.dodo_webhook_secret || site.stripe_webhook_secret || overview?.current.revenue || overview?.previous.revenue)}
+          />
         </div>
 
         <BotsSection key={site.id} bots={overview?.bots} />

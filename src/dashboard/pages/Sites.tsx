@@ -192,7 +192,13 @@ function SitesTable({ sites, bySite }: { sites: Site[]; bySite: Map<string, Site
             return (
               <tr key={s.id} className="cursor-pointer border-t border-stone-100 hover:bg-stone-50" onClick={() => navigate(`/site/${s.id}`)}>
                 <td className="px-5 py-2.5">
-                  <button className="flex items-center gap-3 text-[15px] font-semibold" onClick={() => navigate(`/site/${s.id}`)}>
+                  <button
+                    className="flex items-center gap-3 text-[15px] font-semibold"
+                    onClick={(e) => {
+                      e.stopPropagation(); // the row navigates too
+                      navigate(`/site/${s.id}`);
+                    }}
+                  >
                     <Favicon domain={s.domain} size={20} />
                     {s.name}
                   </button>

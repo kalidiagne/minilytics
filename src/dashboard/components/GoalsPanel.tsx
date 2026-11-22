@@ -10,12 +10,10 @@ import { Avatar, BrowserIcon, DeviceIcon, Flag, OSIcon, SourceIcon } from './Ico
 
 type Tab = 'goal' | 'funnel' | 'user' | 'journey';
 
-export function GoalsPanel({ totalVisitors }: { totalVisitors: number }) {
-  const { site } = useDash();
+export function GoalsPanel({ totalVisitors, paid }: { totalVisitors: number; paid: boolean }) {
   const [pref, setTab] = usePref<Tab>('ml_tab_goals', 'goal');
   const [search, setSearch] = useState('');
   // Journey lists who paid; without a payment source it can only ever be empty.
-  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret);
   const tabs = paid ? (['goal', 'funnel', 'user', 'journey'] as const) : (['goal', 'funnel', 'user'] as const);
   const tab: Tab = !paid && pref === 'journey' ? 'goal' : pref;
   return (
@@ -114,11 +112,10 @@ function Funnels() {
       />
     );
 
-  const top = stats?.[0]?.visitors || 0;
   return (
     <div className="px-3 pb-3">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <select className="input w-auto py-1.5" value={current?.id} onChange={(e) => setSelected(e.target.value)}>
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <select className="input w-auto max-w-full py-1.5 font-medium" value={current?.id} onChange={(e) => setSelected(e.target.value)} aria-label="Funnel">
           {funnels.map((f) => (
             <option key={f.id} value={f.id}>
               {f.name}
@@ -130,40 +127,110 @@ function Funnels() {
         </button>
         {current && (
           <button
-            className="btn py-1.5 text-red-600"
+            className="ml-auto rounded-lg px-2 py-1.5 text-sm text-stone-500 hover:bg-red-50 hover:text-red-700"
             onClick={async () => {
-              if (!confirm(`Delete funnel "${current.name}"?`)) return;
+              if (!confirm(`Delete funnel "${current.name}"? This can't be undone.`)) return;
               await api(`/api/sites/${site.id}/funnels/${current.id}`, { method: 'DELETE' });
               setSelected(null);
               setVersion((v) => v + 1);
             }}
           >
-            Delete
+            Delete funnel
           </button>
         )}
       </div>
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.max(1, stats?.length ?? 1)}, minmax(0, 1fr))` }}>
-        {stats?.map((s, i) => {
-          const pct = top ? s.visitors / top : 0;
-          const prev = i ? stats[i - 1].visitors : s.visitors;
+      {!stats ? <div className="h-48 animate-pulse rounded-xl bg-stone-50" /> : <FunnelChart steps={stats} />}
+    </div>
+  );
+}
+
+type FunnelStat = FunnelDef['steps'][0] & { visitors: number };
+
+/** Steps as horizontal rows, all scaled to the first step, with the people lost between each pair. */
+function FunnelChart({ steps }: { steps: FunnelStat[] }) {
+  const { addFilter } = useDash();
+  const top = steps[0]?.visitors ?? 0;
+  const last = steps[steps.length - 1];
+  if (!top) return <p className="rounded-xl bg-stone-50 px-4 py-6 text-center text-sm text-stone-600">Nobody reached the first step in this period.</p>;
+
+  // The step pair that loses the most people: where to look first.
+  const lost = steps.map((s, i) => (i ? steps[i - 1].visitors - s.visitors : 0));
+  const worst = lost.reduce((w, n, i) => (n > lost[w] ? i : w), 1);
+  const overall = last.visitors / top;
+
+  return (
+    <div>
+      <div className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-[28px] font-semibold leading-tight tracking-tight tabular-nums">{fmtPct(overall, overall > 0 && overall < 0.1 ? 1 : 0)}</span>
+        <span className="text-sm text-stone-600">
+          of {fmtNumber(top)} visitors who {stepVerb(steps[0])} went on to {stepVerb(last, true)} ({fmtNumber(last.visitors)})
+        </span>
+      </div>
+      <ol className="space-y-1">
+        {steps.map((s, i) => {
+          const pct = s.visitors / top;
+          // Only exact paths and goals can become a dashboard filter; wildcard paths can't.
+          const filterable = s.type === 'goal' || !s.value.includes('*');
           return (
-            <div key={i} className="min-w-0">
-              <div className="flex h-48 items-end rounded-xl bg-stone-50">
-                <div className="w-full rounded-xl bg-visitors/70 transition-all" style={{ height: `${Math.max(pct * 100, 2)}%` }} />
-              </div>
-              <div className="mt-2 truncate text-sm font-medium" title={s.value}>
-                {i + 1}. {s.type === 'goal' ? '🎯 ' : ''}
-                {s.value}
-              </div>
-              <div className="text-sm text-stone-600">
-                {fmtNumber(s.visitors)} visitors · {fmtPct(pct)}
-              </div>
-              {i > 0 && <div className="text-xs text-red-500">−{prev ? fmtPct(1 - s.visitors / prev) : '0%'} drop-off</div>}
-            </div>
+            <li key={i}>
+              {i > 0 && (
+                <div className={`ml-3 flex items-center gap-2 border-l-2 py-1.5 pl-5 text-xs tabular-nums ${i === worst && lost[i] > 0 ? 'border-amber-200 text-amber-800' : 'border-stone-100 text-stone-500'}`}>
+                  {lost[i] > 0 ? (
+                    <>
+                      −{fmtNumber(lost[i])} dropped off ({fmtPct(steps[i - 1].visitors ? lost[i] / steps[i - 1].visitors : 0)})
+                      {i === worst && steps.length > 2 && <span className="rounded-md bg-amber-50 px-1.5 py-0.5 font-medium">Biggest drop-off</span>}
+                    </>
+                  ) : (
+                    'No drop-off'
+                  )}
+                </div>
+              )}
+              <button
+                className={`group grid w-full grid-cols-[1.75rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-xl px-1 py-1.5 text-left sm:grid-cols-[1.75rem_minmax(0,14rem)_minmax(0,1fr)_auto] ${filterable ? 'hover:bg-stone-50' : 'cursor-default'}`}
+                onClick={() => filterable && addFilter(s.type === 'goal' ? 'goal' : 'page', s.value)}
+                title={filterable ? `Filter the dashboard to visitors who ${stepVerb(s)}` : undefined}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-600">{i + 1}</span>
+                <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                  <StepIcon type={s.type} />
+                  <span className="truncate" title={s.value}>
+                    {s.value}
+                  </span>
+                </span>
+                <span className="col-span-3 row-start-2 h-3 overflow-hidden rounded-full bg-stone-100 sm:col-span-1 sm:col-start-3 sm:row-start-1">
+                  <span className="block h-full rounded-full bg-visitors" style={{ width: `${Math.max(pct * 100, s.visitors ? 1 : 0)}%` }} />
+                </span>
+                <span className="col-start-3 row-start-1 whitespace-nowrap text-right text-sm tabular-nums sm:col-start-4">
+                  <span className="font-semibold">{fmtNumber(s.visitors)}</span> <span className="text-stone-500">· {fmtPct(pct)}</span>
+                </span>
+              </button>
+            </li>
           );
         })}
-      </div>
+      </ol>
+      <p className="mt-3 text-xs text-stone-500">Counted in order per visitor. Click a step to filter the dashboard to it.</p>
     </div>
+  );
+}
+
+const stepVerb = (s: FunnelDef['steps'][0], base = false) =>
+  s.type === 'goal' ? `${base ? 'complete' : 'completed'} ${s.value}` : `${base ? 'visit' : 'visited'} ${s.value}`;
+
+function StepIcon({ type }: { type: 'page' | 'goal' }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-stone-500" aria-label={type === 'goal' ? 'Goal' : 'Page'} role="img">
+      {type === 'goal' ? (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="4" />
+        </>
+      ) : (
+        <>
+          <path d="M6 3h8l4 4v14H6z" />
+          <path d="M14 3v4h4" />
+        </>
+      )}
+    </svg>
   );
 }
 
