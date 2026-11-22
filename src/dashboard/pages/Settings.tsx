@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BackButton } from '../components/BackButton';
 import { navigate } from '../App';
 import { Favicon } from '../components/Icons';
 import { CurrencySelect, TimezoneSelect } from '../components/SiteFields';
 import { buildAiPrompt } from '../lib/aiPrompt';
-import { api, type Site } from '../lib/api';
+import { api, type SetupStatus, type Site } from '../lib/api';
+import { useApi } from '../lib/useApi';
 import { fmtMoney } from '../lib/format';
 
 const DOCS = 'https://github.com/surendrapandar/minilytics#';
@@ -106,6 +107,11 @@ export function Settings({ siteId }: { siteId: string }) {
   const [form, setForm] = useState<Partial<Site>>({});
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
+  const [tab, setTab] = useState<SettingsTab>(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return TABS.some((x) => x.id === t) ? (t as SettingsTab) : 'setup';
+  });
+  const { data: setup } = useApi<SetupStatus>(`/api/sites/${siteId}/setup`);
   const origin = window.location.origin;
 
   useEffect(() => {
@@ -138,6 +144,15 @@ export function Settings({ siteId }: { siteId: string }) {
   if (!site) return null;
   const set = (patch: Partial<Site>) => setForm({ ...form, ...patch });
 
+  // A webhook secret saved on this page counts right away, without refetching the status.
+  const status = setup && { ...setup, payments: setup.payments || !!(site.dodo_webhook_secret || site.stripe_webhook_secret) };
+  const done = status ? [!!status.firstVisit, !!status.lastGoal, status.payments, !!status.crawlers] : [];
+  const day = (t: number) => new Date(t).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' });
+  const goTab = (t: SettingsTab) => {
+    setTab(t);
+    navigate(`/site/${site.id}/settings${t === 'setup' ? '' : `?tab=${t}`}`, { replace: true });
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:py-12">
       <div className="flex items-center justify-between">
@@ -147,44 +162,93 @@ export function Settings({ siteId }: { siteId: string }) {
         </div>
       </div>
 
-      <AiSetup site={site} origin={origin} />
+      <div className="tabs w-fit max-w-full flex-wrap">
+        {TABS.map((t) => (
+          <button key={t.id} className={`tab ${tab === t.id ? 'tab-active' : ''}`} onClick={() => goTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      <Section title="1. Install the script" desc={<>Add it to the <code>&lt;head&gt;</code> of every page on {site.domain}.</>} docs="install-on-a-website">
-        <Code label="HTML">{`<script defer data-website-id="${site.id}" src="${origin}/js/script.js"></script>`}</Code>
-        <details className="mt-4 text-sm">
-          <summary className="cursor-pointer font-medium text-stone-600">Next.js, and beating ad blockers</summary>
-          <div className="mt-3 space-y-3">
-            <Code label="app/layout.tsx">{`import Script from 'next/script';
+      {tab === 'setup' && (
+        <>
+          <section className="card p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">{status ? `Setup: ${done.filter(Boolean).length} of 4 done` : 'Setup'}</h1>
+              <span className="text-sm text-stone-500">Checks update on their own as data arrives</span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-stone-100" role="progressbar" aria-valuemin={0} aria-valuemax={4} aria-valuenow={done.filter(Boolean).length}>
+              <div className="h-full rounded-full bg-ink transition-[width]" style={{ width: `${(done.filter(Boolean).length / 4) * 100}%` }} />
+            </div>
+          </section>
+
+          <AiSetup site={site} origin={origin} />
+
+          <div className="card divide-y divide-stone-100 overflow-hidden">
+            <CheckStep
+              id="install"
+              title="Install the script"
+              done={done[0]}
+              status={status?.firstVisit ? `Done · first visit seen ${day(status.firstVisit)}` : `Waiting for the first visit on ${site.domain}`}
+            >
+              <p className="mb-3 text-sm text-stone-500">
+                Add it to the <code>&lt;head&gt;</code> of every page on {site.domain}. <DocsLink anchor="install-on-a-website" />
+              </p>
+              <Code label="HTML">{`<script defer data-website-id="${site.id}" src="${origin}/js/script.js"></script>`}</Code>
+              <details className="mt-4 text-sm">
+                <summary className="cursor-pointer font-medium text-stone-600">Next.js, and beating ad blockers</summary>
+                <div className="mt-3 space-y-3">
+                  <Code label="app/layout.tsx">{`import Script from 'next/script';
 
 <Script defer data-website-id="${site.id}" src="${origin}/js/script.js" />`}</Code>
-            <p className="text-stone-500">Serve the script from your own domain so ad blockers don't stop it:</p>
-            <Code label="next.config.js">{`async rewrites() {
+                  <p className="text-stone-500">Serve the script from your own domain so ad blockers don't stop it:</p>
+                  <Code label="next.config.js">{`async rewrites() {
   return [
     { source: '/stats/script.js', destination: '${origin}/js/script.js' },
     { source: '/stats/event', destination: '${origin}/api/event' },
   ];
 }
 // then: <script defer data-website-id="${site.id}" data-api="/stats/event" src="/stats/script.js"></script>`}</Code>
-          </div>
-        </details>
-        <p className="mt-3 text-sm text-stone-500">
-          Your own visits aren't counted from any browser you've opened this dashboard in. For other devices (like your phone), open{' '}
-          <code>{site.domain}/?ml_ignore=true</code> once.
-        </p>
-      </Section>
+                </div>
+              </details>
+              <p className="mt-3 text-sm text-stone-500">
+                Your own visits aren't counted from any browser you've opened this dashboard in. For other devices (like your phone), open{' '}
+                <code>{site.domain}/?ml_ignore=true</code> once.
+              </p>
+            </CheckStep>
 
-      <Section title="2. Track goals" desc="Button clicks and key actions, shown in the Goals tab." docs="install-on-a-website">
-        <Code label="HTML / JS">{`<button data-ml-goal="signup">Get started</button>
+            <CheckStep
+              id="goals"
+              title="Track goals"
+              done={done[1]}
+              status={status?.lastGoal ? `Done · last goal "${status.lastGoal.name}" on ${day(status.lastGoal.at)}` : 'No goals fired yet'}
+            >
+              <p className="mb-3 text-sm text-stone-500">
+                Button clicks and key actions, shown in the Goals tab. <DocsLink anchor="install-on-a-website" />
+              </p>
+              <Code label="HTML / JS">{`<button data-ml-goal="signup">Get started</button>
 
 window.minilytics('goal', 'signup', { plan: 'pro' });
 window.minilytics('identify', { email: user.email, name: user.name });`}</Code>
-      </Section>
+            </CheckStep>
 
-      <Revenue site={site} origin={origin} form={form} set={set} save={save} onKeyRotated={(api_key) => setSite({ ...site, api_key })} />
+            <CheckStep
+              id="payments"
+              title="Connect payments"
+              done={done[2]}
+              status={status?.payments ? 'Done · payments are linked to the visitor and source that brought them' : 'Not connected · revenue, conversion and revenue/visitor stay hidden until then'}
+            >
+              <Revenue site={site} origin={origin} form={form} set={set} save={save} onKeyRotated={(api_key) => setSite({ ...site, api_key })} />
+            </CheckStep>
 
-      <Section title="Bot analytics" desc="Report crawler requests from your website’s backend. Browser tracking alone cannot observe most crawlers.">
-        <p className="mb-3 text-sm text-stone-500">Keep the API key on your server. Send the original request URL and user agent once per incoming request. Human user agents are ignored. Only the hostname and path are stored; query strings, IPs and raw user agents are not stored.</p>
-        <Code>{`await fetch('${origin}/api/v1/bots', {
+            <CheckStep
+              id="crawlers"
+              title="Report crawlers (optional)"
+              done={done[3]}
+              status={status?.crawlers ? `Done · last crawler request ${day(status.crawlers)}` : 'No crawler requests yet · Google, GPTBot and Claude skip JavaScript'}
+            >
+              <p className="mb-3 text-sm text-stone-500">Keep the API key on your server. Send the original request URL and user agent once per incoming request. Human user agents are ignored. Only the hostname and path are stored; query strings, IPs and raw user agents are not stored.</p>
+              <Code>{`await fetch('${origin}/api/v1/bots', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_SITE_API_KEY',
@@ -195,53 +259,97 @@ window.minilytics('identify', { email: user.email, name: user.name });`}</Code>
     user_agent: request.headers.get('user-agent') || '',
   }),
 });`}</Code>
-        <p className="mt-3 text-sm text-stone-500">Use the site API key under Connect payments → Other / API above. Run this in your backend’s supported background-task mechanism so reporting does not delay page responses. Bot identities are inferred from user agents and can be spoofed.</p>
-      </Section>
+              <p className="mt-3 text-sm text-stone-500">Use the site API key under Connect payments → Other / API above. Run this in your backend’s supported background-task mechanism so reporting does not delay page responses. Bot identities are inferred from user agents and can be spoofed.</p>
+            </CheckStep>
+          </div>
+        </>
+      )}
 
-      <LinkBuilder domain={site.domain} />
+      {tab === 'links' && <LinkBuilder domain={site.domain} />}
 
-      <Section title="General">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label">Name</label>
-            <input className="input" value={form.name ?? ''} onChange={(e) => set({ name: e.target.value })} />
+      {tab === 'general' && (
+        <Section title="General">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label">Name</label>
+              <input className="input" value={form.name ?? ''} onChange={(e) => set({ name: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Domain</label>
+              <input className="input" value={form.domain ?? ''} onChange={(e) => set({ domain: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Timezone</label>
+              <TimezoneSelect value={form.timezone ?? 'UTC'} onChange={(timezone) => set({ timezone })} />
+            </div>
+            <div>
+              <label className="label">Revenue currency</label>
+              <CurrencySelect value={form.currency ?? 'USD'} onChange={(currency) => set({ currency })} />
+            </div>
           </div>
-          <div>
-            <label className="label">Domain</label>
-            <input className="input" value={form.domain ?? ''} onChange={(e) => set({ domain: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Timezone</label>
-            <TimezoneSelect value={form.timezone ?? 'UTC'} onChange={(timezone) => set({ timezone })} />
-          </div>
-          <div>
-            <label className="label">Revenue currency</label>
-            <CurrencySelect value={form.currency ?? 'USD'} onChange={(currency) => set({ currency })} />
-          </div>
-        </div>
-        <button className="btn-dark mt-4" onClick={() => save({ name: form.name, domain: form.domain, timezone: form.timezone, currency: form.currency })}>
-          Save changes
-        </button>
-      </Section>
+          <button className="btn-dark mt-4" onClick={() => save({ name: form.name, domain: form.domain, timezone: form.timezone, currency: form.currency })}>
+            Save changes
+          </button>
+        </Section>
+      )}
+
+      {tab === 'danger' && (
+        <Section title="Danger zone" desc="Deleting a site removes all of its visits, goals and payments. This can't be undone.">
+          <button
+            className="btn border-red-200 text-red-600"
+            onClick={async () => {
+              if (prompt(`Type ${site.domain} to delete this site and all of its data`) !== site.domain) return;
+              await api(`/api/sites/${siteId}`, { method: 'DELETE' });
+              navigate('/');
+            }}
+          >
+            Delete site and all data
+          </button>
+        </Section>
+      )}
 
       {(saved || error) && (
         <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl px-4 py-2 text-sm shadow-lg ${error ? 'bg-red-600 text-white' : 'bg-ink text-paper'}`}>
           {error || saved}
         </div>
       )}
+    </div>
+  );
+}
 
-      <Section title="Danger zone">
-        <button
-          className="btn border-red-200 text-red-600"
-          onClick={async () => {
-            if (prompt(`Type ${site.domain} to delete this site and all of its data`) !== site.domain) return;
-            await api(`/api/sites/${siteId}`, { method: 'DELETE' });
-            navigate('/');
-          }}
-        >
-          Delete site and all data
-        </button>
-      </Section>
+type SettingsTab = 'setup' | 'general' | 'links' | 'danger';
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: 'setup', label: 'Setup' },
+  { id: 'general', label: 'General' },
+  { id: 'links', label: 'Link builder' },
+  { id: 'danger', label: 'Danger zone' },
+];
+
+/** One row of the setup checklist: a status line that opens to its instructions. ?step=<id> opens it on load. */
+function CheckStep({ id, title, done, status, children }: { id: string; title: string; done?: boolean; status: string; children: ReactNode }) {
+  const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).get('step') === id);
+  const ref = useRef<HTMLDivElement>(null);
+  // Scroll to a step opened from a link once, not on every re-render.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('step') === id) ref.current?.scrollIntoView({ block: 'start' });
+  }, [id]);
+  return (
+    <div id={`step-${id}`} ref={ref}>
+      <button className="flex min-h-[64px] w-full items-center gap-4 px-6 py-4 text-left hover:bg-stone-50" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${done ? 'bg-emerald-800 text-white' : 'border-2 border-stone-300'}`}>
+          {done && (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
+              <path d="M5 12l5 5 9-10" />
+            </svg>
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{title}</span>
+          <span className="mt-0.5 block text-sm text-stone-500">{status}</span>
+        </span>
+        <span className="text-sm text-stone-600">{open ? 'Hide' : done ? 'View' : 'Set up'}</span>
+      </button>
+      {open && <div className="px-6 pb-6 sm:pl-16">{children}</div>}
     </div>
   );
 }
@@ -267,7 +375,7 @@ function Revenue(props: RevenueProps) {
     { id: 'api', label: 'Other / API', icon: <span className="font-mono text-xs text-stone-500">{'{ }'}</span> },
   ];
   return (
-    <Section title="3. Connect payments" desc="Each payment is linked to the visitor who paid and the source that brought them.">
+    <>
       <div className="mb-5 grid grid-cols-3 gap-2">
         {tabs.map((t) => (
           <button
@@ -286,7 +394,7 @@ function Revenue(props: RevenueProps) {
       {provider === 'dodo' && <DodoSetup {...props} />}
       {provider === 'stripe' && <StripeSetup {...props} />}
       {provider === 'api' && <ApiSetup {...props} />}
-    </Section>
+    </>
   );
 }
 

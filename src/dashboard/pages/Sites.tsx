@@ -24,6 +24,7 @@ export function Sites() {
   const { me } = useMe();
   const [adding, setAdding] = useState(false);
   const [period, setPeriod] = usePref('ml_sites_period', '30d');
+  const [view, setView] = usePref<'table' | 'cards'>('ml_sites_view', 'table');
   const [reloadKey, setReloadKey] = useState(0);
   const { data: sites, loading: loadingSites } = useApi<Site[]>('/api/sites', reloadKey);
   const { data: sparks, loading: loadingSparks } = useApi<SiteSpark[]>(`/api/sites-overview?period=${period}`, reloadKey);
@@ -67,9 +68,18 @@ export function Sites() {
         </div>
       </div>
 
+      {sites && sites.length > 1 && <SummaryStrip sites={sites} sparks={sparks} />}
+
       <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Your websites</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="tabs">
+            {(['table', 'cards'] as const).map((v) => (
+              <button key={v} className={`tab capitalize ${view === v ? 'tab-active' : ''}`} onClick={() => setView(v)}>
+                {v}
+              </button>
+            ))}
+          </div>
           <div className="tabs">
             {PERIODS.map((p) => (
               <button key={p.value} className={`tab ${period === p.value ? 'tab-active' : ''}`} onClick={() => setPeriod(p.value)}>
@@ -86,8 +96,9 @@ export function Sites() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sites && sites.length > 1 && <AllSitesCard sites={sites} sparks={sparks} />}
+      {view === 'table' && sites && sites.length > 0 && <SitesTable sites={sites} bySite={bySite} />}
+
+      <div className={`mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${view === 'table' && sites?.length ? 'hidden' : ''}`}>
         {sites?.map((s) => {
           const spark = bySite.get(s.id);
           return (
@@ -111,51 +122,117 @@ export function Sites() {
   );
 }
 
-/** Every site added together. Revenue is only summed within a currency. */
-function AllSitesCard({ sites, sparks }: { sites: Site[]; sparks: SiteSpark[] | null }) {
+/** Every site added together, above the list. Revenue is only summed within a currency. */
+function SummaryStrip({ sites, sparks }: { sites: Site[]; sparks: SiteSpark[] | null }) {
   const currency = new Map(sites.map((s) => [s.id, s.currency]));
-  const series = sparks?.[0]?.series.map((_, i) => ({
-    visitors: sparks.reduce((n, s) => n + s.series[i].visitors, 0),
-    revenue: sparks.reduce((n, s) => n + s.series[i].revenue, 0),
-  }));
   const revenue = new Map<string, number>();
   for (const s of sparks ?? []) {
     const c = currency.get(s.id) ?? 'USD';
     revenue.set(c, (revenue.get(c) ?? 0) + s.revenue);
   }
+  const paid = [...revenue].filter(([, a]) => a !== 0);
+  const connected = sites.filter((s) => s.dodo_webhook_secret || s.stripe_webhook_secret).length;
+  const visitors = sparks?.reduce((n, s) => n + s.visitors, 0) ?? 0;
+  const bots = sparks?.reduce((n, s) => n + (s.bots ?? 0), 0) ?? 0;
+  const top = sparks?.reduce<SiteSpark | null>((a, s) => (!a || s.visitors > a.visitors ? s : a), null);
+  const topSite = sites.find((s) => s.id === top?.id);
   const online = sparks?.reduce((n, s) => n + s.online, 0) ?? 0;
+  const cell = 'border-stone-100 px-5 py-4 sm:border-r last:border-r-0';
+  const big = 'mt-1 truncate text-[28px] font-semibold leading-tight tracking-tight';
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-3">
-        <div className="flex -space-x-2">
-          {sites.slice(0, 3).map((s) => (
-            <span key={s.id} className="rounded-md ring-2 ring-white">
-              <Favicon domain={s.domain} size={20} />
-            </span>
-          ))}
-        </div>
-        <div className="min-w-0 flex-1 truncate font-semibold">{sites.length} websites</div>
-        {!!online && <Online n={online} />}
+    <div className="card mt-8 grid grid-cols-2 overflow-hidden lg:grid-cols-4">
+      <div className={cell}>
+        <div className="text-sm text-stone-500">Visitors, all sites</div>
+        <div className={big}>{sparks ? fmtNumber(visitors) : '—'}</div>
+        {!!bots && <div className="text-xs text-stone-500">+{fmtNumber(bots)} bots filtered</div>}
       </div>
-      <Sparkline series={series} />
-      <Totals visitors={sparks?.reduce((n, s) => n + s.visitors, 0)} revenue={sparks ? [...revenue].map(([currency, amount]) => ({ currency, amount })) : undefined} />
+      <div className={cell}>
+        <div className="text-sm text-stone-500">Revenue</div>
+        <div className={big}>
+          {paid.length ? paid.map(([c, a]) => fmtMoney(a, c, currencyDecimals(c), true)).join(' + ') : fmtMoney(0, sites[0]?.currency ?? 'USD', 0)}
+        </div>
+        <div className="text-xs text-stone-500">
+          {connected} of {sites.length} sites connected
+        </div>
+      </div>
+      <div className={cell}>
+        <div className="text-sm text-stone-500">Top site</div>
+        <div className={big}>{topSite?.name ?? '—'}</div>
+        {!!visitors && top && <div className="text-xs text-stone-500">{Math.round((top.visitors / visitors) * 100)}% of visitors</div>}
+      </div>
+      <div className={cell}>
+        <div className="flex items-center gap-1.5 text-sm text-stone-500">
+          Online now <span className="h-2 w-2 rounded-full bg-green-500" />
+        </div>
+        <div className={big}>{sparks ? online : '—'}</div>
+        <div className="text-xs text-stone-500">across all sites</div>
+      </div>
+    </div>
+  );
+}
+
+function SitesTable({ sites, bySite }: { sites: Site[]; bySite: Map<string, SiteSpark> }) {
+  const rows = [...sites].sort((a, b) => (bySite.get(b.id)?.visitors ?? 0) - (bySite.get(a.id)?.visitors ?? 0));
+  return (
+    <div className="card mt-5 overflow-x-auto">
+      <table className="w-full text-sm sm:min-w-[640px]">
+        <thead>
+          <tr className="text-left text-stone-500">
+            <th className="px-5 py-3 font-medium">Website</th>
+            <th className="px-3 py-3 font-medium max-sm:hidden">Trend</th>
+            <th className="px-3 py-3 text-right font-medium">Visitors ↓</th>
+            <th className="px-3 py-3 text-right font-medium">Revenue</th>
+            <th className="px-5 py-3 text-right font-medium max-sm:hidden">Online</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((s) => {
+            const spark = bySite.get(s.id);
+            const connected = !!(s.dodo_webhook_secret || s.stripe_webhook_secret || spark?.revenue);
+            return (
+              <tr key={s.id} className="cursor-pointer border-t border-stone-100 hover:bg-stone-50" onClick={() => navigate(`/site/${s.id}`)}>
+                <td className="px-5 py-2.5">
+                  <button
+                    className="flex items-center gap-3 text-[15px] font-semibold"
+                    onClick={(e) => {
+                      e.stopPropagation(); // the row navigates too
+                      navigate(`/site/${s.id}`);
+                    }}
+                  >
+                    <Favicon domain={s.domain} size={20} />
+                    {s.name}
+                  </button>
+                </td>
+                <td className="px-3 py-1 max-sm:hidden">
+                  <Sparkline series={spark?.series} className="h-9 w-36" />
+                </td>
+                <td className="px-3 py-2.5 text-right text-[15px] font-semibold tabular-nums">{spark ? fmtNumber(spark.visitors) : '—'}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">
+                  {!spark ? '—' : connected ? fmtMoney(spark.revenue, s.currency, currencyDecimals(s.currency), true) : <span className="text-stone-500">—</span>}
+                </td>
+                <td className="px-5 py-2.5 text-right max-sm:hidden">{spark?.online ? <Online n={spark.online} /> : <span className="text-stone-500">0</span>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 function Online({ n }: { n: number }) {
   return (
-    <span className="flex items-center gap-1.5 text-sm text-emerald-600" title={`${n} online now`}>
+    <span className="inline-flex items-center gap-1.5 text-sm text-emerald-800" title={`${n} online now`}>
       <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
       {n}
     </span>
   );
 }
 
-function Sparkline({ series }: { series?: { visitors: number; revenue: number }[] }) {
-  if (!series) return <div className="mt-4 h-20 animate-pulse rounded-lg bg-stone-100" />;
+function Sparkline({ series, className = 'mt-4 h-20' }: { series?: { visitors: number; revenue: number }[]; className?: string }) {
+  if (!series) return <div className={`${className} animate-pulse rounded-lg bg-stone-100`} />;
   return (
-    <div className="mt-4 h-20">
+    <div className={className}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={series} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>

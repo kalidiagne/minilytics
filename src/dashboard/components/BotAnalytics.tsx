@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { qs } from '../lib/api';
+import { navigate } from '../App';
 import { CrawlerIcon } from './Icons';
 import { useApi } from '../lib/useApi';
 import { useDash } from '../lib/context';
@@ -50,7 +51,7 @@ function provider(bot: string): string {
   return bot;
 }
 
-export function BotAnalytics() {
+export function BotAnalytics({ embedded = false }: { embedded?: boolean }) {
   const { site, q, reloadKey } = useDash();
   const [active, setActive] = useState<Group>('answers');
   // null means all; [] deliberately means none.
@@ -125,7 +126,15 @@ export function BotAnalytics() {
   const setMenuSelected = menu === 'pages' ? setSelectedPages : setSelectedBots;
   const filteredOptions = menu === 'pages' ? menuOptions.filter(o => matchesPageSearch(o.name, search)) : menuOptions;
 
-  return <section className="card relative mt-6" aria-label="Crawler traffic">
+  // Nothing reported in this range: one line pointing at setup instead of an empty chart.
+  if (all && all.total.requests === 0) {
+    return <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl bg-stone-50 px-4 py-3 text-sm text-stone-600 ${embedded ? '' : 'card mt-6'}`}>
+      <span>No crawler requests in this period. Google, GPTBot and Claude skip JavaScript, so they need one server-side call.</span>
+      <button className="font-medium hover:text-ink" onClick={() => navigate(`/site/${site.id}/settings?tab=setup&step=crawlers`)}>Set up crawler reporting →</button>
+    </div>;
+  }
+
+  return <section className={embedded ? 'relative -mx-4 sm:-mx-5' : 'card relative mt-6'} aria-label="Crawler traffic">
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-5">
       <div role="group" aria-label="Crawler category" className="flex max-w-full flex-wrap gap-1 rounded-2xl bg-stone-100/70 p-1">
         {GROUPS.filter(g => g.key !== 'other' || (options?.counts.other ?? 0) > 0).map(g => <button key={g.key}

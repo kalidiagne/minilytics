@@ -65,4 +65,13 @@ describe('bot sessions', () => {
     db.exec(sql.slice(sql.indexOf('UPDATE')));
     expect(flagged()).toEqual(live);
   });
+
+  it('counts as bots exactly the sessions left out of the visitor numbers', () => {
+    // The dashboard's "bots filtered" count uses NOT notBot(); it must be the exact complement, with no NULL gaps.
+    const { db, arrive, kept } = setup();
+    scenario(arrive);
+    const bots = db.prepare(`SELECT id FROM sessions s WHERE NOT ${notBot()} ORDER BY id`).all().map((r) => r.id);
+    expect(bots).toEqual(['b1', 'b2', 'b3', 'dc']);
+    expect(bots.length + kept().length).toBe((db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as { n: number }).n);
+  });
 });

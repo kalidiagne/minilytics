@@ -104,10 +104,10 @@ export function makeCtx(c: Context<AppEnv>): Ctx {
   return { db: c.env.DB, site, range, filters: parseFilters(q.filters), offset: tzOffset(site.timezone, range.to) };
 }
 
-function sessionsWhere(ctx: Ctx, from = ctx.range.from, to = ctx.range.to) {
+function sessionsWhere(ctx: Ctx, from = ctx.range.from, to = ctx.range.to, bots = false) {
   const f = filterSql(ctx.filters);
   return {
-    sql: `s.site_id = ? AND s.started_at >= ? AND s.started_at < ? AND ${notBot()}${f.sql}`,
+    sql: `s.site_id = ? AND s.started_at >= ? AND s.started_at < ? AND ${bots ? 'NOT ' : ''}${notBot()}${f.sql}`,
     params: [ctx.site.id, from, to, ...f.params],
   };
 }
@@ -176,8 +176,9 @@ export async function overview(ctx: Ctx) {
   const sb = bucketSql('s.started_at', range.granularity, ctx.offset);
   const pb = bucketSql('p.ts', range.granularity, ctx.offset);
   const now = Date.now();
+  const bot = sessionsWhere(ctx, range.from, range.to, true);
 
-  const [k1, k0, r1, r0, online, ts, tr] = await db.batch([
+  const [k1, k0, r1, r0, online, ts, tr, bt, bb, bp] = await db.batch([
     db.prepare(KPI_SQL(cur.sql)).bind(...cur.params),
     db.prepare(KPI_SQL(prev.sql)).bind(...prev.params),
     db.prepare(REVENUE_SQL(curPay.sql)).bind(...curPay.params),
@@ -197,10 +198,18 @@ export async function overview(ctx: Ctx) {
          FROM ${curPay.sql} GROUP BY b`,
       )
       .bind(...curPay.params),
+    // Sessions left out as likely bots: totals by reason, per bucket, and the pages they landed on.
+    db.prepare(`SELECT s.bot AS reason, COUNT(DISTINCT s.visitor_id) AS n FROM sessions s WHERE ${bot.sql} GROUP BY reason`).bind(...bot.params),
+    db.prepare(`SELECT ${sb} AS b, COUNT(DISTINCT s.visitor_id) AS n FROM sessions s WHERE ${bot.sql} GROUP BY b`).bind(...bot.params),
+    db
+      .prepare(`SELECT s.entry_page AS label, COUNT(*) AS n FROM sessions s WHERE ${bot.sql} GROUP BY label ORDER BY n DESC LIMIT 5`)
+      .bind(...bot.params),
   ]);
 
   const visitorsBy = new Map((ts.results as any[]).map((r) => [r.b, r]));
   const revenueBy = new Map((tr.results as any[]).map((r) => [r.b, r]));
+  const botsBy = new Map((bb.results as any[]).map((r) => [r.b, r.n as number]));
+  const reasons = Object.fromEntries((bt.results as any[]).map((r) => [r.reason, r.n as number]));
   const labels = bucketLabels(range, ctx.offset);
   const series = labels.map((b) => ({
     bucket: b,
@@ -208,6 +217,7 @@ export async function overview(ctx: Ctx) {
     pageviews: visitorsBy.get(b)?.pageviews ?? 0,
     revenue: revenueBy.get(b)?.revenue ?? 0,
     payments: revenueBy.get(b)?.payments ?? 0,
+    bots: botsBy.get(b) ?? 0,
   }));
 
   return {
@@ -218,6 +228,13 @@ export async function overview(ctx: Ctx) {
     previous: kpis(k0.results[0] as KpiRow, r0.results[0] as RevRow),
     online: (online.results[0] as { n: number }).n,
     series,
+    bots: {
+      // ponytail: sum of per-reason distinct counts; a visitor flagged for both reasons counts twice.
+      visitors: (reasons.burst ?? 0) + (reasons.datacenter ?? 0),
+      burst: reasons.burst ?? 0,
+      datacenter: reasons.datacenter ?? 0,
+      pages: (bp.results as any[]).map((r) => ({ label: r.label as string | null, n: r.n as number })),
+    },
   };
 }
 
@@ -542,6 +559,7 @@ const SPARK_PERIODS: Record<string, [number, number]> = {
 export interface SiteSpark {
   id: string;
   visitors: number;
+  bots: number;
   revenue: number;
   online: number;
   series: { visitors: number; revenue: number }[];
@@ -562,7 +580,7 @@ export async function sparklines(db: D1Database, siteIds: string[], period: stri
   const ids = siteIds.map(() => '?').join(', ');
   const bucket = (col: string) => `MIN(${n - 1}, CAST((${col} - ${from}) / ${width} AS INTEGER))`;
 
-  const [totals, pay, online, vs, rs] = await db.batch([
+  const [totals, pay, online, vs, rs, bt] = await db.batch([
     db
       .prepare(`SELECT site_id, COUNT(DISTINCT visitor_id) AS v FROM sessions s WHERE site_id IN (${ids}) AND started_at >= ? AND ${notBot()} GROUP BY site_id`)
       .bind(...siteIds, from),
@@ -582,16 +600,20 @@ export async function sparklines(db: D1Database, siteIds: string[], period: stri
     db
       .prepare(`SELECT site_id, ${bucket('ts')} AS b, SUM(amount) AS r FROM payments WHERE site_id IN (${ids}) AND ts >= ? GROUP BY site_id, b`)
       .bind(...siteIds, from),
+    db
+      .prepare(`SELECT site_id, COUNT(DISTINCT visitor_id) AS n FROM sessions s WHERE site_id IN (${ids}) AND started_at >= ? AND NOT ${notBot()} GROUP BY site_id`)
+      .bind(...siteIds, from),
   ]);
 
   const byId = (rows: unknown[], field: string) => new Map((rows as any[]).map((r) => [r.site_id, r[field] as number]));
   const v = byId(totals.results, 'v');
   const r = byId(pay.results, 'r');
   const o = byId(online.results, 'n');
+  const bots = byId(bt.results, 'n');
   const out = new Map(
     siteIds.map((id) => [
       id,
-      { id, visitors: v.get(id) ?? 0, revenue: r.get(id) ?? 0, online: o.get(id) ?? 0, series: Array.from({ length: n }, () => ({ visitors: 0, revenue: 0 })) },
+      { id, visitors: v.get(id) ?? 0, bots: bots.get(id) ?? 0, revenue: r.get(id) ?? 0, online: o.get(id) ?? 0, series: Array.from({ length: n }, () => ({ visitors: 0, revenue: 0 })) },
     ]),
   );
   for (const row of vs.results as any[]) out.get(row.site_id)!.series[row.b].visitors = row.v;
