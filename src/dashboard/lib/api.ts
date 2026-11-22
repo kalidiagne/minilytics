@@ -40,6 +40,7 @@ export interface Site {
 export interface SiteSpark {
   id: string;
   visitors: number;
+  bots: number;
   revenue: number;
   online: number;
   series: { visitors: number; revenue: number }[];
@@ -65,7 +66,16 @@ export interface Overview {
   current: Kpis;
   previous: Kpis;
   online: number;
-  series: { bucket: string; visitors: number; pageviews: number; revenue: number; payments: number }[];
+  series: { bucket: string; visitors: number; pageviews: number; revenue: number; payments: number; bots: number }[];
+  bots: { visitors: number; burst: number; datacenter: number; pages: { label: string | null; n: number }[] };
+}
+
+/** What a site has set up so far, for the Setup checklist. Times are ms; null = not yet. */
+export interface SetupStatus {
+  firstVisit: number | null;
+  lastGoal: { name: string; at: number } | null;
+  payments: boolean;
+  crawlers: number | null;
 }
 
 export interface BreakdownRow {

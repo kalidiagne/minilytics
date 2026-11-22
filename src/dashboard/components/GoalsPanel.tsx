@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { navigate } from '../App';
 import { usePref } from '../lib/prefs';
 import { api, qs, type BreakdownRow } from '../lib/api';
 import { displayName } from '../../shared/names';
@@ -10,13 +11,18 @@ import { Avatar, BrowserIcon, DeviceIcon, Flag, OSIcon, SourceIcon } from './Ico
 type Tab = 'goal' | 'funnel' | 'user' | 'journey';
 
 export function GoalsPanel({ totalVisitors }: { totalVisitors: number }) {
-  const [tab, setTab] = usePref<Tab>('ml_tab_goals', 'journey');
+  const { site } = useDash();
+  const [pref, setTab] = usePref<Tab>('ml_tab_goals', 'goal');
   const [search, setSearch] = useState('');
+  // Journey lists who paid; without a payment source it can only ever be empty.
+  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret);
+  const tabs = paid ? (['goal', 'funnel', 'user', 'journey'] as const) : (['goal', 'funnel', 'user'] as const);
+  const tab: Tab = !paid && pref === 'journey' ? 'goal' : pref;
   return (
     <div className="card p-3">
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
         <div className="tabs">
-          {(['goal', 'funnel', 'user', 'journey'] as const).map((t) => (
+          {tabs.map((t) => (
             <button key={t} className={`tab capitalize ${tab === t ? 'tab-active' : ''}`} onClick={() => setTab(t)}>
               {t === 'journey' ? 'Journey' : t === 'user' ? 'Users' : t === 'goal' ? 'Goals' : 'Funnel'}
             </button>
@@ -40,9 +46,13 @@ function Goals({ totalVisitors }: { totalVisitors: number }) {
   if (!data) return <div className="h-40 animate-pulse" />;
   if (!data.length)
     return (
-      <div className="p-8 text-center text-sm text-stone-500">
-        No goals yet. Add <code className="rounded bg-stone-100 px-1">data-ml-goal="signup_click"</code> to any button, or call{' '}
-        <code className="rounded bg-stone-100 px-1">window.minilytics('goal', 'signup')</code>.
+      <div className="flex flex-wrap items-center justify-between gap-3 px-2 pb-2 text-sm text-stone-600">
+        <span>
+          No goals fired in this period. Add <code className="rounded bg-stone-100 px-1">data-ml-goal="signup"</code> to a button.
+        </span>
+        <button className="font-medium hover:text-ink" onClick={() => navigate(`/site/${site.id}/settings?tab=setup&step=goals`)}>
+          Set up goals →
+        </button>
       </div>
     );
   return (

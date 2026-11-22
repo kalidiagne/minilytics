@@ -248,6 +248,25 @@ app.delete('/api/sites/:id', async (c) => {
 
 app.get('/api/sites/:id/bots', botStats);
 
+// What the site has set up, for the Setup checklist in settings. Each check is one indexed lookup.
+app.get('/api/sites/:id/setup', async (c) => {
+  const site = c.get('site');
+  const db = c.env.DB;
+  const [first, goal, pay, crawl] = await db.batch([
+    db.prepare('SELECT started_at AS t FROM sessions WHERE site_id = ? ORDER BY started_at LIMIT 1').bind(site.id),
+    db.prepare(`SELECT name, ts AS t FROM events WHERE site_id = ? AND type = 'goal' ORDER BY ts DESC LIMIT 1`).bind(site.id),
+    db.prepare('SELECT 1 AS x FROM payments WHERE site_id = ? LIMIT 1').bind(site.id),
+    db.prepare('SELECT ts AS t FROM bot_requests WHERE site_id = ? ORDER BY ts DESC LIMIT 1').bind(site.id),
+  ]);
+  const g = goal.results[0] as { name: string; t: number } | undefined;
+  return c.json({
+    firstVisit: (first.results[0] as { t: number } | undefined)?.t ?? null,
+    lastGoal: g ? { name: g.name, at: g.t } : null,
+    payments: !!(site.dodo_webhook_secret || site.stripe_webhook_secret || pay.results.length),
+    crawlers: (crawl.results[0] as { t: number } | undefined)?.t ?? null,
+  });
+});
+
 // ---------- stats
 
 app.get('/api/sites/:id/overview', async (c) => c.json(await overview(makeCtx(c))));

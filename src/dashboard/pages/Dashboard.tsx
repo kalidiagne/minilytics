@@ -1,8 +1,9 @@
-import { BotAnalytics } from '../components/BotAnalytics';
+import { BotsSection } from '../components/BotsSection';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '../App';
 import { GoalsPanel } from '../components/GoalsPanel';
 import { OverviewCard } from '../components/OverviewCard';
+import { Summary } from '../components/Summary';
 import { Panel, renderLabel } from '../components/Panel';
 import { Toolbar } from '../components/Toolbar';
 import { VisitorModal } from '../components/VisitorModal';
@@ -144,6 +145,10 @@ export function Dashboard({ siteId }: { siteId: string }) {
         </div>
 
         <div className="mt-5">
+          <Summary data={overview} />
+        </div>
+
+        <div className="mt-4">
           <OverviewCard data={overview} onLive={() => setLive(true)} />
         </div>
 
@@ -184,9 +189,9 @@ export function Dashboard({ siteId }: { siteId: string }) {
           <GoalsPanel totalVisitors={overview?.current.visitors ?? 0} />
         </div>
 
-        <BotAnalytics key={site.id} />
+        <BotsSection key={site.id} bots={overview?.bots} />
 
-        <p className="mt-8 text-center text-xs text-stone-400">
+        <p className="mt-8 text-center text-xs text-stone-500">
           Times in {site.timezone} · Revenue in {site.currency} ·{' '}
           <button className="underline-offset-2 hover:underline" onClick={() => navigate(`/site/${site.id}/settings`)}>
             Settings & install
