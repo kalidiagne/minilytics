@@ -10,10 +10,10 @@ export function BotsSection({ bots }: { bots: Overview['bots'] | undefined }) {
   const active = tab ?? (filtered ? 'filtered' : 'crawlers');
 
   return (
-    <section className="card mt-5 p-4 sm:px-5" aria-label="Bots">
+    <section className="card p-4 sm:px-5" aria-label="Bots">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="font-semibold">Bots</h2>
+          <h3 className="font-semibold">Bots</h3>
           <div className="tabs">
             <button className={`tab ${active === 'filtered' ? 'tab-active' : ''}`} onClick={() => setTab('filtered')}>
               Filtered from visitors <span className="tabular-nums text-stone-500">{fmtNumber(filtered)}</span>

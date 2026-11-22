@@ -280,7 +280,7 @@ export default function LiveView({ onClose }: { onClose: () => void }) {
   const dark = style === 'dark';
   const panel = dark ? 'bg-stone-900/85 text-stone-100 border-white/10' : 'bg-white/90 text-ink border-stone-200';
   const muted = dark ? 'text-stone-400' : 'text-stone-500';
-  const btn = `rounded-lg p-1.5 transition ${dark ? 'hover:bg-white/10' : 'hover:bg-stone-100'}`;
+  const btn = `rounded-lg p-2 transition ${dark ? 'hover:bg-white/10' : 'hover:bg-stone-100'}`;
 
   return (
     <div ref={rootRef} className="keep-light fixed inset-0 z-50 bg-[#070b1a]">
@@ -292,43 +292,57 @@ export default function LiveView({ onClose }: { onClose: () => void }) {
       {/* Summary card */}
       <div className={`absolute left-3 top-3 w-[min(360px,calc(100%-24px))] rounded-2xl border p-4 shadow-xl backdrop-blur ${panel}`}>
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-semibold">
-            <Favicon domain={site.domain} size={18} /> {site.name}
-            <span className={`text-xs font-medium uppercase tracking-wider ${muted}`}>· Real-time</span>
+          <div className="flex min-w-0 items-center gap-2 font-semibold">
+            <Favicon domain={site.domain} size={18} />
+            <span className="truncate">{site.name}</span>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-0.5">
             <button
               className={btn}
+              aria-label={sound ? 'Turn sound off' : 'Turn sound on'}
               title={sound ? 'Sound on' : 'Sound off'}
               onClick={() => {
                 unlockAudio();
                 setSound((s) => !s);
               }}
             >
-              {sound ? '🔔' : '🔕'}
+              <Icon d={sound ? 'M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14' : 'M11 5 6 9H2v6h4l5 4zM22 9l-6 6M16 9l6 6'} />
             </button>
-            <button className={`${btn} text-xs font-semibold`} title="3D globe / 2D map" onClick={() => setProjection((p) => (p === 'globe' ? 'mercator' : 'globe'))}>
+            <button
+              className={`${btn} min-w-[34px] text-xs font-semibold`}
+              aria-label={projection === 'globe' ? 'Switch to flat map' : 'Switch to globe'}
+              title={projection === 'globe' ? 'Flat map' : 'Globe'}
+              onClick={() => setProjection((p) => (p === 'globe' ? 'mercator' : 'globe'))}
+            >
               {projection === 'globe' ? '2D' : '3D'}
             </button>
-            <button className={btn} title="Light / dark map" onClick={() => setStyle((s) => (s === 'light' ? 'dark' : 'light'))}>
-              {dark ? '☀️' : '🌙'}
+            <button className={btn} aria-label={dark ? 'Light map' : 'Dark map'} title={dark ? 'Light map' : 'Dark map'} onClick={() => setStyle((s) => (s === 'light' ? 'dark' : 'light'))}>
+              <Icon d={dark ? 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4' : 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'} />
             </button>
             <button
               className={btn}
+              aria-label="Fullscreen"
               title="Fullscreen"
               onClick={() => (document.fullscreenElement ? document.exitFullscreen() : rootRef.current?.requestFullscreen())}
             >
-              ⛶
+              <Icon d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
             </button>
-            <button className={btn} title="Close (Esc)" onClick={onClose}>
-              ✕
+            <span className={`mx-1 h-5 w-px ${dark ? 'bg-white/15' : 'bg-stone-200'}`} aria-hidden="true" />
+            <button className={btn} aria-label="Close live map" title="Close (Esc)" onClick={onClose}>
+              <Icon d="M6 6l12 12M18 6 6 18" />
             </button>
           </div>
         </div>
-        <div className="mt-2 flex items-center gap-2 text-sm">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-          <b>{visitors.length}</b> visitor{visitors.length === 1 ? '' : 's'} on <span className="font-medium">{site.domain}</span>
+        <div className="mt-3 flex items-baseline gap-2">
+          <span className="text-[28px] font-semibold leading-none tracking-tight tabular-nums">{visitors.length}</span>
+          <span className="text-sm">
+            {visitors.length === 1 ? 'person' : 'people'} on {site.domain} now
+          </span>
+          <span className={`ml-auto flex items-center gap-1.5 self-center rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium ${dark ? 'text-green-300' : 'text-green-700'}`}>
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" /> Live
+          </span>
         </div>
+        {data && data.feed.length === 0 && <p className={`mt-2 text-sm ${muted}`}>No activity in the last 30 minutes. New visits appear here as they happen.</p>}
         {visitors.length > 0 && (
           <div className="mt-3 space-y-1.5 text-xs">
             <Chips label="Referrers" muted={muted} items={summary.referrers.map(([k, n]) => [<SourceIcon key="i" source={k} size={14} />, k, n])} />
@@ -337,17 +351,17 @@ export default function LiveView({ onClose }: { onClose: () => void }) {
           </div>
         )}
         {summary.unplaced > 0 && (
-          <p className={`mt-2 text-[11px] ${muted}`}>
+          <p className={`mt-2 text-xs ${muted}`}>
             {summary.unplaced} visitor{summary.unplaced > 1 ? 's' : ''} without a location (arrived before the globe was added) not shown on the map.
           </p>
         )}
         {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
       </div>
 
-      {/* Live event feed */}
+      {/* Live event feed; when it's empty the summary card says so instead. */}
+      {(!data || data.feed.length > 0) && (
       <div className={`absolute bottom-3 left-3 max-h-[45vh] w-[min(380px,calc(100%-24px))] overflow-y-auto rounded-2xl border p-2 shadow-xl backdrop-blur ${panel}`}>
         {!data && <p className={`p-3 text-sm ${muted}`}>Connecting…</p>}
-        {data && data.feed.length === 0 && <p className={`p-3 text-sm ${muted}`}>No activity in the last 30 minutes.</p>}
         {data?.feed.map((f) => {
           const who = f.visitor_id ? displayName(f.visitor_id, f.name) : f.name ?? 'Someone';
           return (
@@ -358,7 +372,9 @@ export default function LiveView({ onClose }: { onClose: () => void }) {
                 dark ? 'hover:bg-white/10' : 'hover:bg-stone-100'
               } ${f.visitor_id && f.visitor_id === highlight ? (dark ? 'bg-white/10' : 'bg-stone-100') : ''}`}
             >
-              <span className="mt-0.5 shrink-0">{f.type === 'payment' ? '💳' : f.type === 'refund' ? '↩️' : f.type === 'goal' ? '🎯' : '👁'}</span>
+              <span className={`mt-0.5 shrink-0 ${f.type === 'payment' ? 'text-emerald-600' : muted}`}>
+                <Icon size={15} d={FEED_ICONS[f.type] ?? FEED_ICONS.pageview} />
+              </span>
               <span className="min-w-0">
                 <span className="font-semibold">{who}</span>
                 {f.country && (
@@ -374,7 +390,7 @@ export default function LiveView({ onClose }: { onClose: () => void }) {
                 )}
                 {f.type === 'goal' && (
                   <>
-                    completed <span className="font-medium text-violet-500">{f.label}</span>
+                    completed <span className="font-medium">{f.label}</span>
                   </>
                 )}
                 {f.type === 'payment' && (
@@ -383,13 +399,29 @@ export default function LiveView({ onClose }: { onClose: () => void }) {
                   </>
                 )}
                 {f.type === 'refund' && <>was refunded {money(Math.abs(f.amount ?? 0))}</>}
-                <span className={`block text-[11px] ${muted}`}>{fmtAgo(Date.now() - f.ts)} ago</span>
+                <span className={`block text-xs ${muted}`}>{fmtAgo(Date.now() - f.ts)} ago</span>
               </span>
             </button>
           );
         })}
       </div>
+      )}
     </div>
+  );
+}
+
+const FEED_ICONS: Record<string, string> = {
+  payment: 'M3 6h18v12H3zM3 10h18',
+  refund: 'M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3',
+  goal: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  pageview: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+};
+
+function Icon({ d, size = 17 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
   );
 }
 

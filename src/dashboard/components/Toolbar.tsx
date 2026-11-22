@@ -124,7 +124,8 @@ export function Toolbar({
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${compact ? 'max-sm:gap-1.5' : ''}`}>
-      <BackButton to="/" label="" className={`btn ${sq} ${anim} justify-center px-0`} />
+      {/* The page header above has the logo and theme toggle; the stuck bar brings them back as a back button and toggle. */}
+      {compact && <BackButton to="/" label="" className={`btn ${sq} ${anim} justify-center px-0`} />}
       {/* ponytail: on phones the site picker takes the spare width of the first row and its name truncates */}
       <Dropdown
         className="max-sm:min-w-0 max-sm:flex-1"
@@ -154,10 +155,10 @@ export function Toolbar({
             ))}
             <div className="my-1 border-t border-stone-100" />
             <button className={itemCls(false)} onClick={() => navigate(`/site/${site.id}/settings`)}>
-              ⚙️ Site settings & install
+              Site settings & install
             </button>
             <button className={itemCls(false)} onClick={() => navigate('/')}>
-              ＋ All websites
+              All websites
             </button>
           </>
         )}
@@ -245,8 +246,9 @@ export function Toolbar({
         </Dropdown>
       </div>
 
-      <button className={`btn ${h} ${anim} px-4 ${secondary}`} onClick={onLive} title="Live map (M)">
+      <button className={`btn ${h} ${anim} px-4 sm:ml-auto ${secondary}`} onClick={onLive} title="Live map (M)">
         <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" /> <span className="max-sm:sr-only">Live</span>
+        {!!overview?.online && <span className="tabular-nums text-stone-500">{overview.online}</span>}
       </button>
 
       <button className={`btn ${sq} ${anim} px-0 ${secondary}`} onClick={onRefresh} aria-label="Refresh">
@@ -256,7 +258,7 @@ export function Toolbar({
         </svg>
       </button>
 
-      <ThemeToggle className={`btn ${sq} ${anim} px-0 ${secondary}`} />
+      {compact && <ThemeToggle className={`btn ${sq} ${anim} px-0 ${secondary}`} />}
     </div>
   );
 }

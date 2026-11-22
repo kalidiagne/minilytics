@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { BackButton } from '../components/BackButton';
+import { AppHeader } from '../components/AppHeader';
 import { navigate } from '../App';
 import { Favicon } from '../components/Icons';
 import { CurrencySelect, TimezoneSelect } from '../components/SiteFields';
@@ -108,7 +108,8 @@ export function Settings({ siteId }: { siteId: string }) {
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
   const [tab, setTab] = useState<SettingsTab>(() => {
-    const t = new URLSearchParams(window.location.search).get('tab');
+    const raw = new URLSearchParams(window.location.search).get('tab');
+    const t = raw === 'general' || raw === 'danger' ? 'site' : raw; // older links
     return TABS.some((x) => x.id === t) ? (t as SettingsTab) : 'setup';
   });
   const { data: setup } = useApi<SetupStatus>(`/api/sites/${siteId}/setup`);
@@ -154,35 +155,46 @@ export function Settings({ siteId }: { siteId: string }) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:py-12">
-      <div className="flex items-center justify-between">
-        <BackButton fallback={`/site/${site.id}`} />
-        <div className="flex items-center gap-2 font-semibold">
-          <Favicon domain={site.domain} size={22} /> {site.name}
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:py-12">
+      <AppHeader
+        crumbs={[
+          {
+            label: (
+              <>
+                <Favicon domain={site.domain} size={20} />
+                <span className="min-w-0 truncate">{site.name}</span>
+              </>
+            ),
+            to: `/site/${site.id}`,
+          },
+          { label: 'Settings' },
+        ]}
+      />
 
-      <div className="tabs w-fit max-w-full flex-wrap">
-        {TABS.map((t) => (
-          <button key={t.id} className={`tab ${tab === t.id ? 'tab-active' : ''}`} onClick={() => goTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
+      {/* Same title row as the websites page: page name on the left, its controls on the right. */}
+      <div className="!mt-10 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Settings</h1>
+        <div className="tabs max-w-full flex-wrap">
+          {TABS.map((t) => (
+            <button key={t.id} className={`tab ${tab === t.id ? 'tab-active' : ''}`} onClick={() => goTab(t.id)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === 'setup' && (
         <>
           <section className="card p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">{status ? `Setup: ${done.filter(Boolean).length} of 4 done` : 'Setup'}</h1>
+              <h2 className="text-xl font-semibold tracking-tight">{status ? `Setup: ${done.filter(Boolean).length} of 4 done` : 'Setup'}</h2>
               <span className="text-sm text-stone-500">Checks update on their own as data arrives</span>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-stone-100" role="progressbar" aria-valuemin={0} aria-valuemax={4} aria-valuenow={done.filter(Boolean).length}>
               <div className="h-full rounded-full bg-ink transition-[width]" style={{ width: `${(done.filter(Boolean).length / 4) * 100}%` }} />
             </div>
+            <AiSetup site={site} origin={origin} />
           </section>
-
-          <AiSetup site={site} origin={origin} />
 
           <div className="card divide-y divide-stone-100 overflow-hidden">
             <CheckStep
@@ -267,7 +279,7 @@ window.minilytics('identify', { email: user.email, name: user.name });`}</Code>
 
       {tab === 'links' && <LinkBuilder domain={site.domain} />}
 
-      {tab === 'general' && (
+      {tab === 'site' && (
         <Section title="General">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -293,7 +305,7 @@ window.minilytics('identify', { email: user.email, name: user.name });`}</Code>
         </Section>
       )}
 
-      {tab === 'danger' && (
+      {tab === 'site' && (
         <Section title="Danger zone" desc="Deleting a site removes all of its visits, goals and payments. This can't be undone.">
           <button
             className="btn border-red-200 text-red-600"
@@ -317,12 +329,11 @@ window.minilytics('identify', { email: user.email, name: user.name });`}</Code>
   );
 }
 
-type SettingsTab = 'setup' | 'general' | 'links' | 'danger';
+type SettingsTab = 'setup' | 'site' | 'links';
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'setup', label: 'Setup' },
-  { id: 'general', label: 'General' },
+  { id: 'site', label: 'Site' },
   { id: 'links', label: 'Link builder' },
-  { id: 'danger', label: 'Danger zone' },
 ];
 
 /** One row of the setup checklist: a status line that opens to its instructions. ?step=<id> opens it on load. */
@@ -597,19 +608,24 @@ function AiSetup({ site, origin }: { site: Site; origin: string }) {
   const [open, setOpen] = useState(false);
   const prompt = buildAiPrompt(site, origin);
   return (
-    <section className="card border-violet-200 bg-gradient-to-br from-violet-50 to-surface p-6">
+    <div className="mt-5 rounded-xl bg-stone-50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">✨ Set up with AI</h2>
-          <p className="mt-1 text-sm text-stone-600">Paste into Claude Code or Cursor in your project. It does steps 1–3 for you.</p>
+        <div className="flex items-start gap-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 shrink-0 text-stone-500" aria-hidden="true">
+            <path d="m12 3 2 5.5L19.5 10 14 12l-2 5.5L10 12 4.5 10 10 8.5Z" />
+          </svg>
+          <div>
+            <h3 className="font-semibold">Set up with AI</h3>
+            <p className="mt-0.5 text-sm text-stone-600">Paste into Claude Code or Cursor in your project. It does the install, goals and payments steps for you.</p>
+          </div>
         </div>
         <CopyButton text={prompt} label="Copy AI prompt" className="btn-dark shrink-0" />
       </div>
-      <button className="mt-3 text-sm font-medium text-violet-700 hover:underline" onClick={() => setOpen((o) => !o)}>
+      <button className="ml-[30px] mt-2 text-sm font-medium text-stone-600 hover:text-ink" onClick={() => setOpen((o) => !o)}>
         {open ? 'Hide prompt' : 'Preview prompt'}
       </button>
-      {open && <pre className="code keep-light mt-3 dark:ring-1 dark:ring-white/10 max-h-96 whitespace-pre-wrap">{prompt}</pre>}
-    </section>
+      {open && <pre className="code keep-light mt-3 max-h-96 whitespace-pre-wrap dark:ring-1 dark:ring-white/10">{prompt}</pre>}
+    </div>
   );
 }
 

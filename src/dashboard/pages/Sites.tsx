@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { navigate, useMe } from '../App';
 import { Favicon } from '../components/Icons';
-import { Logo } from '../components/Logo';
+import { AppHeader } from '../components/AppHeader';
 import { Modal } from '../components/Modal';
-import { ThemeToggle } from '../components/ThemeToggle';
 import { CurrencySelect, TimezoneSelect } from '../components/SiteFields';
 import { Area, Bar, ComposedChart, ResponsiveContainer, YAxis } from 'recharts';
 import { currencyDecimals } from '../../shared/currency';
@@ -19,6 +18,21 @@ const PERIODS = [
   { value: '90d', label: '90d' },
 ];
 const AUTO_REFRESH_MS = 60_000;
+const VIEWS = [
+  { id: 'table', label: 'Table view', icon: <path d="M4 6h16M4 12h16M4 18h16" /> },
+  {
+    id: 'cards',
+    label: 'Card view',
+    icon: (
+      <>
+        <rect x="4" y="4" width="7" height="7" rx="1.5" />
+        <rect x="13" y="4" width="7" height="7" rx="1.5" />
+        <rect x="4" y="13" width="7" height="7" rx="1.5" />
+        <rect x="13" y="13" width="7" height="7" rx="1.5" />
+      </>
+    ),
+  },
+] as const;
 
 export function Sites() {
   const { me } = useMe();
@@ -49,24 +63,20 @@ export function Sites() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
-      <div className="flex items-center justify-between">
-        <Logo />
-        <div className="flex items-center gap-2">
-          {me.hosted && me.user && (
-            <button className="hidden items-center gap-2 rounded-xl px-2 py-1 text-sm text-stone-600 hover:bg-stone-100 sm:flex" onClick={() => navigate('/billing')} title="Plan & billing">
-              {me.user.avatar ? <img src={me.user.avatar} alt="" className="h-7 w-7 rounded-full" referrerPolicy="no-referrer" /> : null}
-              {me.user.email}
-            </button>
-          )}
-          <ThemeToggle className="btn h-[38px] w-[38px] px-0" />
-          <button className="btn" onClick={logout}>
-            Log out
+      <AppHeader>
+        {me.hosted && me.user && (
+          <button className="hidden items-center gap-2 rounded-xl px-2 py-1 text-sm text-stone-600 hover:bg-stone-100 sm:flex" onClick={() => navigate('/billing')} title="Plan & billing">
+            {me.user.avatar ? <img src={me.user.avatar} alt="" className="h-7 w-7 rounded-full" referrerPolicy="no-referrer" /> : null}
+            {me.user.email}
           </button>
-          <button className="btn-dark" onClick={() => setAdding(true)}>
-            + Add<span className="max-sm:hidden"> website</span>
-          </button>
-        </div>
-      </div>
+        )}
+        <button className="btn" onClick={logout}>
+          Log out
+        </button>
+        <button className="btn-dark" onClick={() => setAdding(true)}>
+          + Add<span className="max-sm:hidden"> website</span>
+        </button>
+      </AppHeader>
 
       {sites && sites.length > 1 && <SummaryStrip sites={sites} sparks={sparks} />}
 
@@ -74,16 +84,26 @@ export function Sites() {
         <h1 className="text-2xl font-semibold">Your websites</h1>
         <div className="flex flex-wrap items-center gap-2">
           <div className="tabs">
-            {(['table', 'cards'] as const).map((v) => (
-              <button key={v} className={`tab capitalize ${view === v ? 'tab-active' : ''}`} onClick={() => setView(v)}>
-                {v}
-              </button>
-            ))}
-          </div>
-          <div className="tabs">
             {PERIODS.map((p) => (
               <button key={p.value} className={`tab ${period === p.value ? 'tab-active' : ''}`} onClick={() => setPeriod(p.value)}>
                 {p.label}
+              </button>
+            ))}
+          </div>
+          {/* Layout switch: icons, so it doesn't read as part of the period picker next to it. */}
+          <div className="tabs" role="group" aria-label="Layout">
+            {VIEWS.map((v) => (
+              <button
+                key={v.id}
+                className={`tab flex h-8 w-9 items-center justify-center px-0 ${view === v.id ? 'tab-active' : ''}`}
+                onClick={() => setView(v.id)}
+                aria-label={v.label}
+                aria-pressed={view === v.id}
+                title={v.label}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  {v.icon}
+                </svg>
               </button>
             ))}
           </div>
@@ -208,7 +228,13 @@ function SitesTable({ sites, bySite }: { sites: Site[]; bySite: Map<string, Site
                 </td>
                 <td className="px-3 py-2.5 text-right text-[15px] font-semibold tabular-nums">{spark ? fmtNumber(spark.visitors) : '—'}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">
-                  {!spark ? '—' : connected ? fmtMoney(spark.revenue, s.currency, currencyDecimals(s.currency), true) : <span className="text-stone-500">—</span>}
+                  {!spark ? '—' : connected ? fmtMoney(spark.revenue, s.currency, currencyDecimals(s.currency), true) : (
+                    // $0 means connected but no payments yet; this means no payment source at all.
+                    <span className="text-stone-500" title="No payment source connected">
+                      <span className="max-sm:hidden">Not connected</span>
+                      <span className="sm:hidden">—</span>
+                    </span>
+                  )}
                 </td>
                 <td className="px-5 py-2.5 text-right max-sm:hidden">{spark?.online ? <Online n={spark.online} /> : <span className="text-stone-500">0</span>}</td>
               </tr>
