@@ -13,6 +13,7 @@ import { DashContext, type Dash } from '../lib/context';
 import { fmtMoney } from '../lib/format';
 import { useApi } from '../lib/useApi';
 import { useQueryState } from '../lib/useQueryState';
+import { usePref } from '../lib/prefs';
 
 // The globe pulls in a map library, so it's only downloaded when opened.
 const LiveView = lazy(() => import('../components/LiveView'));
@@ -75,6 +76,9 @@ export function Dashboard({ siteId }: { siteId: string }) {
   const { data: overview, loading } = useApi<Overview>(site ? `/api/sites/${siteId}/overview?${qs(q)}` : null, reloadKey);
 
   const addFilter = useCallback((key: string, value: string) => update({ filters: { ...q.filters, [key]: value } }), [q.filters, update]);
+  const addFilters = useCallback((more: Record<string, string>) => update({ filters: { ...q.filters, ...more } }), [q.filters, update]);
+  // Starred goals, per site: shown first in Goals and named in the summary.
+  const [pins, setPins] = usePref<string[]>(`ml_goal_pins_${siteId}`, []);
   const removeFilter = (key: string) => {
     const { [key]: _, ...rest } = q.filters;
     update({ filters: rest });
@@ -90,9 +94,10 @@ export function Dashboard({ siteId }: { siteId: string }) {
       decimals,
       money: (minor, compact) => fmtMoney(minor, site.currency, decimals, compact),
       addFilter,
+      addFilters,
       openVisitor: setVisitor,
     };
-  }, [site, q, reloadKey, overview?.decimals, addFilter]);
+  }, [site, q, reloadKey, overview?.decimals, addFilter, addFilters]);
 
   if (sites && !site) {
     return (
@@ -158,7 +163,7 @@ export function Dashboard({ siteId }: { siteId: string }) {
         </div>
 
         <div className="mt-5">
-          <Summary data={overview} />
+          <Summary data={overview} pins={pins} />
         </div>
 
         <div className="mt-4">
@@ -197,6 +202,9 @@ export function Dashboard({ siteId }: { siteId: string }) {
           <div className="mt-5">
             <GoalsPanel
               totalVisitors={overview?.current.visitors ?? 0}
+              prevVisitors={overview?.previous.visitors ?? 0}
+              pins={pins}
+              setPins={setPins}
               paid={!!(site.dodo_webhook_secret || site.stripe_webhook_secret || overview?.current.revenue || overview?.previous.revenue)}
             />
           </div>

@@ -1,16 +1,29 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { navigate } from '../App';
 import { usePref } from '../lib/prefs';
 import { api, qs, type BreakdownRow } from '../lib/api';
 import { displayName } from '../../shared/names';
 import { useDash } from '../lib/context';
-import { countryName, fmtAgo, fmtDateTime, fmtDuration, fmtNumber, fmtPct } from '../lib/format';
+import { countryName, fmtAgo, fmtDateTime, fmtDuration, fmtNumber, fmtPct, goalName } from '../lib/format';
+import { renderLabel } from './Panel';
 import { useApi } from '../lib/useApi';
 import { Avatar, BrowserIcon, DeviceIcon, Flag, OSIcon, SourceIcon } from './Icons';
 
 type Tab = 'goal' | 'funnel' | 'user' | 'journey';
 
-export function GoalsPanel({ totalVisitors, paid }: { totalVisitors: number; paid: boolean }) {
+export function GoalsPanel({
+  totalVisitors,
+  prevVisitors,
+  paid,
+  pins,
+  setPins,
+}: {
+  totalVisitors: number;
+  prevVisitors: number;
+  paid: boolean;
+  pins: string[];
+  setPins: (next: string[]) => void;
+}) {
   const [pref, setTab] = usePref<Tab>('ml_tab_goals', 'goal');
   const [search, setSearch] = useState('');
   // Journey lists who paid; without a payment source it can only ever be empty.
@@ -30,7 +43,7 @@ export function GoalsPanel({ totalVisitors, paid }: { totalVisitors: number; pai
           <input className="input max-w-[240px] py-1.5" placeholder="🔍 Search" value={search} onChange={(e) => setSearch(e.target.value)} />
         )}
       </div>
-      {tab === 'goal' && <Goals totalVisitors={totalVisitors} />}
+      {tab === 'goal' && <Goals totalVisitors={totalVisitors} prevVisitors={prevVisitors} paid={paid} pins={pins} setPins={setPins} />}
       {tab === 'funnel' && <Funnels />}
       {tab === 'user' && <Users search={search} />}
       {tab === 'journey' && <Journey search={search} />}
@@ -38,9 +51,22 @@ export function GoalsPanel({ totalVisitors, paid }: { totalVisitors: number; pai
   );
 }
 
-function Goals({ totalVisitors }: { totalVisitors: number }) {
+function Goals({
+  totalVisitors,
+  prevVisitors,
+  paid,
+  pins,
+  setPins,
+}: {
+  totalVisitors: number;
+  prevVisitors: number;
+  paid: boolean;
+  pins: string[];
+  setPins: (next: string[]) => void;
+}) {
   const { site, q, reloadKey, money, addFilter } = useDash();
   const { data } = useApi<BreakdownRow[]>(`/api/sites/${site.id}/breakdown?${qs(q, { dim: 'goal' })}`, reloadKey);
+  const [open, setOpen] = useState<string | null>(null);
   if (!data) return <div className="h-40 animate-pulse" />;
   if (!data.length)
     return (
@@ -53,30 +79,156 @@ function Goals({ totalVisitors }: { totalVisitors: number }) {
         </button>
       </div>
     );
+
+  // Pinned goals first, then by conversion (visitors / the same total, so by visitors).
+  const rows = [...data].sort((a, b) => Number(pins.includes(b.label ?? '')) - Number(pins.includes(a.label ?? '')) || b.visitors - a.visitors);
+  const best = Math.max(...rows.map((r) => r.visitors), 1);
+  const togglePin = (label: string) => setPins(pins.includes(label) ? pins.filter((p) => p !== label) : [...pins, label]);
+  const cols = paid ? 6 : 5;
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full whitespace-nowrap text-sm">
+      <table className="w-full whitespace-nowrap text-sm tabular-nums">
         <thead>
           <tr className="text-left text-stone-500">
-            <th className="px-3 pb-2 font-medium">Goal</th>
-            <th className="pb-2 pl-3 text-right font-medium">Visitors</th>
-            <th className="pb-2 pl-3 text-right font-medium">Completions</th>
-            <th className="pb-2 pl-3 text-right font-medium">Conversion</th>
-            <th className="px-3 pb-2 text-right font-medium">Revenue</th>
+            <th className="w-8 pb-2 pl-2" aria-label="Pinned" />
+            <th className="px-2 pb-2 font-medium">Goal</th>
+            <th className="pb-2 pl-3 font-medium sm:w-[34%]">Conversion</th>
+            <th className="pb-2 pl-3 text-right font-medium max-sm:hidden">Visitors</th>
+            <th className="pb-2 pl-3 text-right font-medium max-sm:hidden">Completions</th>
+            {paid && <th className="pb-2 pl-3 text-right font-medium max-sm:hidden">Revenue</th>}
           </tr>
         </thead>
         <tbody>
-          {data.map((g) => (
-            <tr key={g.label} className="cursor-pointer border-t border-stone-100 hover:bg-stone-50" onClick={() => addFilter('goal', g.label ?? '')} title="Filter by visitors who completed this goal">
-              <td className="px-3 py-2.5 font-medium">🎯 {g.label}</td>
-              <td className="py-2.5 pl-3 text-right">{fmtNumber(g.visitors)}</td>
-              <td className="py-2.5 pl-3 text-right">{fmtNumber(g.pageviews ?? 0)}</td>
-              <td className="py-2.5 pl-3 text-right">{totalVisitors ? fmtPct(g.visitors / totalVisitors, 1) : '—'}</td>
-              <td className="px-3 py-2.5 text-right">{money(g.revenue)}</td>
-            </tr>
-          ))}
+          {rows.map((g) => {
+            const label = g.label ?? '';
+            const pinned = pins.includes(label);
+            const rate = totalVisitors ? g.visitors / totalVisitors : 0;
+            const perVisitor = g.visitors ? (g.pageviews ?? 0) / g.visitors : 0;
+            const expanded = open === label;
+            return (
+              <Fragment key={label}>
+                <tr
+                  className="cursor-pointer border-t border-stone-100 hover:bg-stone-50"
+                  onClick={() => addFilter('goal', label)}
+                  title={`Filter the dashboard to visitors who completed ${label}`}
+                >
+                  <td className="py-2.5 pl-2">
+                    <button
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg hover:bg-stone-100 ${pinned ? 'text-amber-700' : 'text-stone-300 hover:text-stone-500'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePin(label);
+                      }}
+                      aria-label={pinned ? `Unpin ${label}` : `Pin ${label} to the top`}
+                      title={pinned ? 'Unpin' : 'Pin to the top and the summary'}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z" />
+                      </svg>
+                    </button>
+                  </td>
+                  <td className="px-2 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-ink"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpen(expanded ? null : label);
+                        }}
+                        aria-expanded={expanded}
+                        aria-label={`${expanded ? 'Hide' : 'Show'} where ${label} visitors came from`}
+                        title="Where they came from"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`transition-transform ${expanded ? 'rotate-90' : ''}`} aria-hidden="true">
+                          <path d="m9 6 6 6-6 6" />
+                        </svg>
+                      </button>
+                      <span className="font-medium" title={label}>
+                        {goalName(label)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 pl-3">
+                    <div className="flex items-center gap-3">
+                      <span className="h-2 min-w-[60px] flex-1 overflow-hidden rounded-full bg-stone-100 max-sm:hidden">
+                        <span className="block h-full rounded-full bg-visitors" style={{ width: `${(g.visitors / best) * 100}%` }} />
+                      </span>
+                      <span className="w-11 text-right font-medium sm:w-12">{totalVisitors ? fmtPct(rate, rate >= 0.1 ? 0 : 1) : '—'}</span>
+                      <span className="w-12 text-left sm:w-16">
+                        <RateChange cur={rate} prevVisitors={g.prevVisitors} prevTotal={prevVisitors} />
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 pl-3 text-right max-sm:hidden">{fmtNumber(g.visitors)}</td>
+                  <td className="py-2.5 pl-3 text-right max-sm:hidden">
+                    {fmtNumber(g.pageviews ?? 0)}
+                    {perVisitor >= 1.5 && <span className="ml-1.5 text-xs text-stone-500">×{perVisitor.toFixed(1)} each</span>}
+                  </td>
+                  {paid && <td className="py-2.5 pl-3 pr-3 text-right max-sm:hidden">{money(g.revenue)}</td>}
+                </tr>
+                {expanded && (
+                  <tr className="bg-stone-50/60">
+                    <td />
+                    <td colSpan={cols - 1} className="px-2 pb-3 pt-1">
+                      <GoalSources goal={label} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
+      <p className="px-2 pt-3 text-xs text-stone-500">Conversion is the share of all visitors in this period; the change compares it with the previous period. Star a goal to keep it on top.</p>
+    </div>
+  );
+}
+
+/** Change in conversion vs the previous period, in percentage points. */
+function RateChange({ cur, prevVisitors, prevTotal }: { cur: number; prevVisitors?: number; prevTotal: number }) {
+  if (prevVisitors === undefined || !prevTotal) return null;
+  if (!prevVisitors) return cur > 0 ? <span className="text-xs text-stone-500">new</span> : null;
+  const pts = (cur - prevVisitors / prevTotal) * 100;
+  if (Math.abs(pts) < 0.05) return <span className="text-xs text-stone-500">±0</span>;
+  return (
+    <span className={`text-xs ${pts > 0 ? 'text-emerald-800' : 'text-red-700'}`} title="Percentage points vs the previous period">
+      {pts > 0 ? '▲' : '▼'} {Math.abs(pts).toFixed(1)}<span className="max-sm:hidden"> pts</span>
+    </span>
+  );
+}
+
+/** Top channels and referrers for one goal: which source drives it. */
+function GoalSources({ goal }: { goal: string }) {
+  const { site, q, reloadKey, addFilters } = useDash();
+  const scoped = { ...q, filters: { ...q.filters, goal } };
+  const channels = useApi<BreakdownRow[]>(`/api/sites/${site.id}/breakdown?${qs(scoped, { dim: 'channel', limit: 3 })}`, reloadKey).data;
+  const sources = useApi<BreakdownRow[]>(`/api/sites/${site.id}/breakdown?${qs(scoped, { dim: 'source', limit: 3 })}`, reloadKey).data;
+  const list = (title: string, rows: BreakdownRow[] | null, dim: 'channel' | 'source') => (
+    <div className="min-w-[200px] flex-1">
+      <div className="mb-1 text-xs font-medium text-stone-500">{title}</div>
+      {!rows ? (
+        <div className="h-12 animate-pulse rounded-lg bg-stone-100" />
+      ) : !rows.length ? (
+        <div className="text-stone-500">—</div>
+      ) : (
+        rows.map((r) => (
+          <button
+            key={r.label ?? ''}
+            className="flex w-full items-center justify-between gap-3 rounded-md px-1.5 py-0.5 text-left hover:bg-stone-100"
+            onClick={() => addFilters({ goal, [dim]: r.label ?? '' })}
+          >
+            <span className="flex min-w-0 items-center gap-1.5">{renderLabel(dim, r)}</span>
+            <span className="font-medium">{fmtNumber(r.visitors)}</span>
+          </button>
+        ))
+      )}
+    </div>
+  );
+  return (
+    <div className="flex flex-wrap gap-6">
+      {list('Top channels', channels, 'channel')}
+      {list('Top referrers', sources, 'source')}
     </div>
   );
 }

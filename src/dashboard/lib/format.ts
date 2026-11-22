@@ -100,3 +100,10 @@ export function countryName(cc: string | null | undefined): string {
 export function shortId(id: string) {
   return id.replace(/-/g, '').slice(0, 6);
 }
+
+/** "waitlist_signup" -> "Waitlist signup". The raw name stays in tooltips and filters, since it has to match the code. */
+export function goalName(raw: string | null | undefined): string {
+  if (!raw) return '(unnamed)';
+  const s = raw.replace(/[_-]+/g, ' ').trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
