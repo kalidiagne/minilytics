@@ -1,3 +1,4 @@
+import { AppHeader } from '../components/AppHeader';
 import { BotsSection } from '../components/BotsSection';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '../App';
@@ -107,11 +108,23 @@ export function Dashboard({ siteId }: { siteId: string }) {
 
   return (
     <DashContext.Provider value={dash}>
-      <div className="mx-auto max-w-[1480px] px-3 pb-6 sm:px-6 lg:pb-10">
+      <div className="mx-auto max-w-6xl px-4 pb-6 lg:pb-10">
+        <h1 className="sr-only">{site.name}</h1>
+        <div className="pt-8 sm:pt-12">
+          <AppHeader>
+            <button className="btn" onClick={() => navigate(`/site/${site.id}/settings`)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+              </svg>
+              <span className="max-sm:sr-only">Settings</span>
+            </button>
+          </AppHeader>
+        </div>
         <div ref={sentinel} className="h-px" aria-hidden />
         <div
-          className={`sticky top-0 z-30 -mx-3 border-b bg-paper/90 px-3 backdrop-blur transition-[padding,border-color] duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
-            stuck ? 'border-stone-200 py-2' : 'border-transparent pb-0 pt-6 lg:pt-10'
+          className={`sticky top-0 z-30 -mx-4 border-b bg-paper/90 px-4 backdrop-blur transition-[padding,border-color] duration-200 motion-reduce:transition-none ${
+            stuck ? 'border-stone-200 py-2' : 'border-transparent pb-0 pt-8'
           }`}
         >
           <Toolbar
@@ -152,22 +165,27 @@ export function Dashboard({ siteId }: { siteId: string }) {
           <OverviewCard data={overview} onLive={() => setLive(true)} />
         </div>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Panel
-            tabs={[
-              { label: 'Channel', dim: 'channel', filter: 'channel' },
-              { label: 'Referrer', dim: 'source', filter: 'source' },
-              { label: 'Campaign', dim: 'campaign', filter: 'utm_campaign' },
-              { label: 'Keyword', dim: 'keyword', filter: 'utm_term' },
-            ]}
-          />
-          <Panel
-            tabs={[
-              { label: 'Country', dim: 'country', filter: 'country' },
-              { label: 'Region', dim: 'region', filter: 'region' },
-              { label: 'City', dim: 'city', filter: 'city' },
-            ]}
-          />
+        <Group title="Where they come from">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Panel
+              tabs={[
+                { label: 'Channel', dim: 'channel', filter: 'channel' },
+                { label: 'Referrer', dim: 'source', filter: 'source' },
+                { label: 'Campaign', dim: 'campaign', filter: 'utm_campaign' },
+                { label: 'Keyword', dim: 'keyword', filter: 'utm_term' },
+              ]}
+            />
+            <Panel
+              tabs={[
+                { label: 'Country', dim: 'country', filter: 'country' },
+                { label: 'Region', dim: 'region', filter: 'region' },
+                { label: 'City', dim: 'city', filter: 'city' },
+              ]}
+            />
+          </div>
+        </Group>
+
+        <Group title="What they do">
           <Panel
             tabs={[
               { label: 'Page', dim: 'page', filter: 'page' },
@@ -176,6 +194,15 @@ export function Dashboard({ siteId }: { siteId: string }) {
               { label: 'Hostname', dim: 'hostname', filter: 'hostname' },
             ]}
           />
+          <div className="mt-5">
+            <GoalsPanel
+              totalVisitors={overview?.current.visitors ?? 0}
+              paid={!!(site.dodo_webhook_secret || site.stripe_webhook_secret || overview?.current.revenue || overview?.previous.revenue)}
+            />
+          </div>
+        </Group>
+
+        <Group title="What they use">
           <Panel
             tabs={[
               { label: 'Browser', dim: 'browser', filter: 'browser' },
@@ -183,16 +210,11 @@ export function Dashboard({ siteId }: { siteId: string }) {
               { label: 'Device', dim: 'device', filter: 'device' },
             ]}
           />
-        </div>
+        </Group>
 
-        <div className="mt-5">
-          <GoalsPanel
-            totalVisitors={overview?.current.visitors ?? 0}
-            paid={!!(site.dodo_webhook_secret || site.stripe_webhook_secret || overview?.current.revenue || overview?.previous.revenue)}
-          />
-        </div>
-
-        <BotsSection key={site.id} bots={overview?.bots} />
+        <Group title="Not people">
+          <BotsSection key={site.id} bots={overview?.bots} />
+        </Group>
 
         <p className="mt-8 text-center text-xs text-stone-500">
           Times in {site.timezone} · Revenue in {site.currency} ·{' '}
@@ -208,5 +230,15 @@ export function Dashboard({ siteId }: { siteId: string }) {
       )}
       <VisitorModal key={visitor ?? 'none'} visitorId={visitor} onClose={() => setVisitor(null)} />
     </DashContext.Provider>
+  );
+}
+
+/** A labeled band of the dashboard, so related panels read as one group. */
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-10" aria-label={title}>
+      <h2 className="mb-3 text-sm font-semibold text-stone-500">{title}</h2>
+      {children}
+    </section>
   );
 }

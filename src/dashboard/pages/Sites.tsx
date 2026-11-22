@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { navigate, useMe } from '../App';
 import { Favicon } from '../components/Icons';
-import { Logo } from '../components/Logo';
+import { AppHeader } from '../components/AppHeader';
 import { Modal } from '../components/Modal';
-import { ThemeToggle } from '../components/ThemeToggle';
 import { CurrencySelect, TimezoneSelect } from '../components/SiteFields';
 import { Area, Bar, ComposedChart, ResponsiveContainer, YAxis } from 'recharts';
 import { currencyDecimals } from '../../shared/currency';
@@ -64,24 +63,20 @@ export function Sites() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
-      <div className="flex items-center justify-between">
-        <Logo />
-        <div className="flex items-center gap-2">
-          {me.hosted && me.user && (
-            <button className="hidden items-center gap-2 rounded-xl px-2 py-1 text-sm text-stone-600 hover:bg-stone-100 sm:flex" onClick={() => navigate('/billing')} title="Plan & billing">
-              {me.user.avatar ? <img src={me.user.avatar} alt="" className="h-7 w-7 rounded-full" referrerPolicy="no-referrer" /> : null}
-              {me.user.email}
-            </button>
-          )}
-          <ThemeToggle className="btn h-[38px] w-[38px] px-0" />
-          <button className="btn" onClick={logout}>
-            Log out
+      <AppHeader>
+        {me.hosted && me.user && (
+          <button className="hidden items-center gap-2 rounded-xl px-2 py-1 text-sm text-stone-600 hover:bg-stone-100 sm:flex" onClick={() => navigate('/billing')} title="Plan & billing">
+            {me.user.avatar ? <img src={me.user.avatar} alt="" className="h-7 w-7 rounded-full" referrerPolicy="no-referrer" /> : null}
+            {me.user.email}
           </button>
-          <button className="btn-dark" onClick={() => setAdding(true)}>
-            + Add<span className="max-sm:hidden"> website</span>
-          </button>
-        </div>
-      </div>
+        )}
+        <button className="btn" onClick={logout}>
+          Log out
+        </button>
+        <button className="btn-dark" onClick={() => setAdding(true)}>
+          + Add<span className="max-sm:hidden"> website</span>
+        </button>
+      </AppHeader>
 
       {sites && sites.length > 1 && <SummaryStrip sites={sites} sparks={sparks} />}
 
