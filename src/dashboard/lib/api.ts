@@ -85,6 +85,7 @@ export interface BreakdownRow {
   revenue: number;
   customers: number;
   extra?: string | null;
+  prevVisitors?: number;
 }
 
 export type Filters = Record<string, string>;

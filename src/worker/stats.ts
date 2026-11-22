@@ -268,6 +268,8 @@ export interface BreakdownRow {
   customers: number;
   icon?: string | null;
   extra?: string | null;
+  /** Goals only: distinct visitors who completed it in the previous period of the same length. */
+  prevVisitors?: number;
 }
 
 export async function breakdown(ctx: Ctx, dim: string, limit = 100): Promise<BreakdownRow[]> {
@@ -334,7 +336,10 @@ export async function breakdown(ctx: Ctx, dim: string, limit = 100): Promise<Bre
     const f = filterSql(ctx.filters);
     const params = [ctx.site.id, type, ctx.range.from, ctx.range.to, ...f.params];
     const base = `FROM events e ${EVENT_SESSION} WHERE e.site_id = ? AND e.type = ? AND e.ts >= ? AND e.ts < ? AND ${notBot()}${f.sql}`;
-    const [v, r] = await db.batch([
+    // Goals also get the previous period of the same length, so the table can show the change.
+    const span = ctx.range.to - ctx.range.from;
+    const prevParams = [ctx.site.id, type, ctx.range.from - span, ctx.range.from, ...f.params];
+    const [v, r, pv] = await db.batch([
       db
         .prepare(
           `SELECT e.name AS label, COUNT(DISTINCT e.visitor_id) AS visitors, COUNT(*) AS pageviews ${base}
@@ -349,8 +354,16 @@ export async function breakdown(ctx: Ctx, dim: string, limit = 100): Promise<Bre
            GROUP BY g.label`,
         )
         .bind(...params, ctx.site.id, ctx.range.from, ctx.range.to),
+      db
+        .prepare(dim === 'goal' ? `SELECT e.name AS label, COUNT(DISTINCT e.visitor_id) AS visitors ${base} GROUP BY label` : 'SELECT NULL AS label, 0 AS visitors WHERE 0')
+        .bind(...(dim === 'goal' ? prevParams : [])),
     ]);
-    return merge(v.results as any[], r.results as any[]);
+    const rows = merge(v.results as any[], r.results as any[]);
+    if (dim === 'goal') {
+      const prev = new Map((pv.results as any[]).map((x) => [x.label, x.visitors as number]));
+      for (const row of rows) row.prevVisitors = prev.get(row.label) ?? 0;
+    }
+    return rows;
   }
 
   throw new Error(`unknown dimension ${dim}`);

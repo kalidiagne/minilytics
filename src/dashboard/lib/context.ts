@@ -8,6 +8,8 @@ export interface Dash {
   decimals: number;
   money: (minor: number, compact?: boolean) => string;
   addFilter: (key: string, value: string) => void;
+  /** Several filters in one update (two addFilter calls in a row would overwrite each other). */
+  addFilters: (filters: Record<string, string>) => void;
   openVisitor: (visitorId: string) => void;
 }
 

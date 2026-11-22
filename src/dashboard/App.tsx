@@ -138,7 +138,7 @@ export function App() {
   } else {
     const settings = /^\/site\/([\w-]+)\/settings\/?$/.exec(path);
     const site = /^\/site\/([\w-]+)\/?$/.exec(path);
-    page = settings ? <Settings siteId={settings[1]} /> : site ? <Dashboard siteId={site[1]} /> : <Sites />;
+    page = settings ? <Settings siteId={settings[1]} /> : site ? <Dashboard key={site[1]} siteId={site[1]} /> : <Sites />;
   }
   return <MeContext.Provider value={{ me, refresh }}>{page}</MeContext.Provider>;
 }
