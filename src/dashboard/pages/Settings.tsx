@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppHeader } from '../components/AppHeader';
+import { ConfirmButton } from '../components/ConfirmButton';
 import { navigate } from '../App';
 import { Favicon } from '../components/Icons';
 import { CurrencySelect, TimezoneSelect } from '../components/SiteFields';
@@ -307,16 +308,10 @@ window.minilytics('identify', { email: user.email, name: user.name });`}</Code>
 
       {tab === 'site' && (
         <Section title="Danger zone" desc="Deleting a site removes all of its visits, goals and payments. This can't be undone.">
-          <button
-            className="btn border-red-200 text-red-600"
-            onClick={async () => {
-              if (prompt(`Type ${site.domain} to delete this site and all of its data`) !== site.domain) return;
-              await api(`/api/sites/${siteId}`, { method: 'DELETE' });
-              navigate('/');
-            }}
-          >
-            Delete site and all data
-          </button>
+          <DeleteSite domain={site.domain} onDelete={async () => {
+            await api(`/api/sites/${siteId}`, { method: 'DELETE' });
+            navigate('/');
+          }} />
         </Section>
       )}
 
@@ -563,23 +558,42 @@ await stripe.checkout.sessions.create({
   );
 }
 
+function DeleteSite({ domain, onDelete }: { domain: string; onDelete: () => void }) {
+  const [typed, setTyped] = useState('');
+  return (
+    <div className="flex flex-wrap gap-2">
+      <input className="input max-w-xs" placeholder={`Type ${domain} to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Site domain" />
+      <button className="btn border-red-200 text-red-600 disabled:opacity-50" disabled={typed.trim() !== domain} onClick={onDelete}>
+        Delete site and all data
+      </button>
+    </div>
+  );
+}
+
 function ApiSetup({ site, origin, onKeyRotated }: RevenueProps) {
+  const [rotateError, setRotateError] = useState('');
   return (
     <>
       <p className="mb-3 text-sm text-stone-500">Any other provider: send payments from your backend with this site's API key.</p>
       <div className="mb-4 flex gap-2">
         <input className="input font-mono" readOnly value={site.api_key} />
-        <button
-          className="btn"
-          onClick={async () => {
-            if (!confirm('Rotate the API key? The old key stops working immediately.')) return;
-            const r = await api<{ api_key: string }>(`/api/sites/${site.id}/rotate-key`, { method: 'POST' });
-            onKeyRotated(r.api_key);
+        <ConfirmButton
+          className="btn shrink-0"
+          confirmLabel="Old key stops working. Rotate?"
+          onConfirm={async () => {
+            setRotateError('');
+            try {
+              const r = await api<{ api_key: string }>(`/api/sites/${site.id}/rotate-key`, { method: 'POST' });
+              onKeyRotated(r.api_key);
+            } catch (e) {
+              setRotateError(e instanceof Error ? e.message : 'Could not rotate the key');
+            }
           }}
         >
           Rotate
-        </button>
+        </ConfirmButton>
       </div>
+      {rotateError && <p className="-mt-2 mb-4 text-sm text-red-600">{rotateError}</p>}
       <Code label="POST /api/v1/payments">{`curl -X POST ${origin}/api/v1/payments \\
   -H "Authorization: Bearer ${site.api_key}" \\
   -H "Content-Type: application/json" \\

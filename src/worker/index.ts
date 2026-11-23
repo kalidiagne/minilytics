@@ -231,6 +231,8 @@ app.patch('/api/sites/:id', async (c) => {
 app.post('/api/sites/:id/rotate-key', async (c) => {
   const key = 'ml_' + randomId(16);
   await c.env.DB.prepare('UPDATE sites SET api_key = ? WHERE id = ?').bind(key, c.get('site').id).run();
+  // Otherwise the cached site keeps serving the old key (and a later settings save shows it again).
+  forgetSite(c.get('site').id);
   return c.json({ api_key: key });
 });
 
