@@ -100,3 +100,17 @@ export async function keyedHash(secret: string, data: string): Promise<string> {
   const mac = new Uint8Array(await hmac(enc.encode(secret), data));
   return Array.from(mac, (b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** SHA-256 as lowercase hex (API tokens are stored only as this hash). */
+export async function sha256Hex(value: string): Promise<string> {
+  const d = await crypto.subtle.digest('SHA-256', enc.encode(value));
+  return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** SHA-256 as unpadded base64url, the PKCE S256 code challenge of a verifier. */
+export async function pkceChallenge(verifier: string): Promise<string> {
+  const d = await crypto.subtle.digest('SHA-256', enc.encode(verifier));
+  return bytesToB64(d).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export { safeEqual };

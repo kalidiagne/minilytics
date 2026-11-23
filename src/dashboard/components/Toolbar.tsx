@@ -68,7 +68,7 @@ const Chevron = () => (
 );
 
 function itemCls(active: boolean) {
-  return `flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-stone-100 ${active ? 'font-medium text-ink' : 'text-stone-600'}`;
+  return `flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-zinc-100 ${active ? 'font-semibold text-zinc-900 bg-zinc-50' : 'text-zinc-600'}`;
 }
 
 export function Toolbar({
@@ -150,10 +150,10 @@ export function Toolbar({
                   navigate(`/site/${s.id}${window.location.search}`, { replace: true });
                 }}
               >
-                <Favicon domain={s.domain} size={16} /> {s.name}
+                <Favicon domain={s.domain} size={15} /> {s.name}
               </button>
             ))}
-            <div className="my-1 border-t border-stone-100" />
+            <div className="my-1 border-t border-zinc-100" />
             <button className={itemCls(false)} onClick={() => navigate(`/site/${site.id}/settings`)}>
               Site settings & install
             </button>

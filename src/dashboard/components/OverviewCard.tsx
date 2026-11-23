@@ -94,15 +94,15 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
           </Fragment>
         ))}
         {data && (
-          <button className="px-5 py-4 text-left hover:bg-stone-50" onClick={onLive} title="Open the live map (M)">
-            <div className="flex items-center gap-1.5 text-sm text-stone-500">
-              Online <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+          <button className="p-4 text-left transition-colors hover:bg-zinc-50/80" onClick={onLive} title="Open the live map (M)">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500">
+              Online <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
             </div>
             <div className="mt-1 text-[28px] font-semibold leading-tight">{data.online}</div>
             <div className="text-xs text-stone-500">View on map →</div>
           </button>
         )}
-        {!data && <div className="col-span-full h-[98px] animate-pulse bg-stone-50" />}
+        {!data && <div className="col-span-full h-[98px] animate-pulse bg-zinc-50" />}
       </div>
 
       <div className="h-[340px] px-2 pb-3 pt-6 sm:px-4">
@@ -119,8 +119,8 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
             <ComposedChart data={data.series} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="vis" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8dbdf0" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#8dbdf0" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="rgb(var(--stone-100))" strokeDasharray="4 4" />
@@ -130,14 +130,14 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
                 tick={{ fill: 'rgb(var(--stone-400))', fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                minTickGap={24}
+                minTickGap={28}
               />
               <YAxis
                 yAxisId="v"
                 tick={{ fill: 'rgb(var(--stone-400))', fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                width={44}
+                width={40}
                 allowDecimals={false}
                 tickFormatter={(v) => fmtNumber(v)}
               />
@@ -147,7 +147,7 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
                 tick={{ fill: 'rgb(var(--stone-400))', fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
-                width={56}
+                width={50}
                 tickFormatter={(v) => money(v, true)}
                 hide={hidden.revenue}
                 // Headroom keeps revenue bars in the lower part of the chart, under the visitors line.
@@ -171,15 +171,15 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
                 }}
               />
               {!hidden.revenue && (
-                <Bar yAxisId="r" dataKey="revenue" fill="#e07b5f" radius={[4, 4, 0, 0]} maxBarSize={36} isAnimationActive={false} />
+                <Bar yAxisId="r" dataKey="revenue" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={32} isAnimationActive={false} />
               )}
               {!hidden.visitors && (
                 <Area
                   yAxisId="v"
                   type="monotone"
                   dataKey="visitors"
-                  stroke="#7cb1ea"
-                  strokeWidth={2.5}
+                  stroke="#6366f1"
+                  strokeWidth={2}
                   fill="url(#vis)"
                   dot={false}
                   activeDot={{ r: 4, fill: '#7cb1ea', stroke: 'rgb(var(--surface))', strokeWidth: 2 }}
