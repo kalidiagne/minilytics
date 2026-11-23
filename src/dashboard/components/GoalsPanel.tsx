@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { navigate } from '../App';
 import { usePref } from '../lib/prefs';
 import { api, qs, type BreakdownRow } from '../lib/api';
+import { ConfirmButton } from './ConfirmButton';
 import { displayName } from '../../shared/names';
 import { useDash } from '../lib/context';
 import { countryName, fmtAgo, fmtDateTime, fmtDuration, fmtNumber, fmtPct, goalName } from '../lib/format';
@@ -278,17 +279,17 @@ function Funnels() {
           + New funnel
         </button>
         {current && (
-          <button
+          <ConfirmButton
             className="ml-auto rounded-lg px-2 py-1.5 text-sm text-stone-500 hover:bg-red-50 hover:text-red-700"
-            onClick={async () => {
-              if (!confirm(`Delete funnel "${current.name}"? This can't be undone.`)) return;
+            confirmLabel="Delete for good?"
+            onConfirm={async () => {
               await api(`/api/sites/${site.id}/funnels/${current.id}`, { method: 'DELETE' });
               setSelected(null);
               setVersion((v) => v + 1);
             }}
           >
             Delete funnel
-          </button>
+          </ConfirmButton>
         )}
       </div>
       {!stats ? <div className="h-48 animate-pulse rounded-xl bg-stone-50" /> : <FunnelChart steps={stats} />}
