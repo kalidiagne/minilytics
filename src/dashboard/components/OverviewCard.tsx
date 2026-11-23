@@ -29,7 +29,7 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
   const c = data?.current;
   const p = data?.previous;
   // Revenue tiles only mean something once a payment source is connected (or payments arrived through the API).
-  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || c?.revenue || p?.revenue);
+  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || data?.hasPayments || c?.revenue || p?.revenue);
   const hidden = paid ? prefHidden : { ...prefHidden, revenue: true };
   const bots = data?.bots;
 

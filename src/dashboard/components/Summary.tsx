@@ -18,7 +18,7 @@ export function Summary({ data, pins = [] }: { data: Overview | null; pins?: str
   const c = data.current;
   if (!c.visitors) return <p className="text-lg text-stone-600">No visitors in this period yet.</p>;
   const peak = data.series.reduce((a, b) => (b.visitors > a.visitors ? b : a), data.series[0]);
-  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || c.revenue || data.previous.revenue);
+  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || data.hasPayments || c.revenue || data.previous.revenue);
   const from = [channel, country && countryName(country)].filter(Boolean);
   const B = ({ children }: { children: React.ReactNode }) => <strong className="font-semibold text-ink">{children}</strong>;
 
