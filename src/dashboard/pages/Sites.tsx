@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { navigate, useMe } from '../App';
+import { ConnectAI } from '../components/ConnectAI';
 import { Favicon } from '../components/Icons';
 import { AppHeader } from '../components/AppHeader';
 import { Modal } from '../components/Modal';
@@ -37,6 +38,7 @@ const VIEWS = [
 export function Sites() {
   const { me } = useMe();
   const [adding, setAdding] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [period, setPeriod] = usePref('ml_sites_period', '30d');
   const [view, setView] = usePref<'table' | 'cards'>('ml_sites_view', 'table');
   const [reloadKey, setReloadKey] = useState(0);
@@ -72,6 +74,9 @@ export function Sites() {
         )}
         <button className="btn" onClick={logout}>
           Log out
+        </button>
+        <button className="btn" onClick={() => setConnecting(true)} title="Ask Claude, ChatGPT or Cursor about your analytics">
+          ✦ Connect AI
         </button>
         <button className="btn-dark" onClick={() => setAdding(true)}>
           + Add<span className="max-sm:hidden"> website</span>
@@ -122,10 +127,10 @@ export function Sites() {
         {sites?.map((s) => {
           const spark = bySite.get(s.id);
           return (
-            <button key={s.id} onClick={() => navigate(`/site/${s.id}`)} className="card p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md">
+            <button key={s.id} onClick={() => navigate(`/site/${s.id}`)} className="card p-5 text-left border border-zinc-200/80 shadow-sm transition hover:border-zinc-300 hover:shadow-md">
               <div className="flex items-center gap-3">
-                <Favicon domain={s.domain} size={24} />
-                <div className="min-w-0 flex-1 truncate font-semibold">{s.name}</div>
+                <Favicon domain={s.domain} size={22} />
+                <div className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900">{s.name}</div>
                 {!!spark?.online && <Online n={spark.online} />}
               </div>
               <Sparkline series={spark?.series} />
@@ -134,10 +139,11 @@ export function Sites() {
           );
         })}
         {sites && !sites.length && (
-          <div className="card col-span-full p-10 text-center text-stone-500">No websites yet. Add your first one to get a tracking snippet.</div>
+          <div className="card col-span-full p-10 text-center text-zinc-400">No websites yet. Add your first one to get a tracking snippet.</div>
         )}
       </div>
       <AddSite open={adding} onClose={() => setAdding(false)} />
+      <ConnectAI open={connecting} onClose={() => setConnecting(false)} />
     </div>
   );
 }
@@ -263,14 +269,14 @@ function Sparkline({ series, className = 'mt-4 h-20' }: { series?: { visitors: n
         <ComposedChart data={series} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8dbdf0" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#8dbdf0" stopOpacity={0} />
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.25} />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
             </linearGradient>
           </defs>
           <YAxis yAxisId="v" hide domain={[0, 'dataMax']} />
           <YAxis yAxisId="r" hide domain={[0, 'dataMax']} />
-          <Bar yAxisId="r" dataKey="revenue" fill="#e07b5f" radius={[2, 2, 0, 0]} maxBarSize={6} isAnimationActive={false} />
-          <Area yAxisId="v" type="monotone" dataKey="visitors" stroke="#8dbdf0" strokeWidth={2} fill="url(#spark-fill)" isAnimationActive={false} />
+          <Bar yAxisId="r" dataKey="revenue" fill="#10b981" radius={[2, 2, 0, 0]} maxBarSize={6} isAnimationActive={false} />
+          <Area yAxisId="v" type="monotone" dataKey="visitors" stroke="#6366f1" strokeWidth={2} fill="url(#spark-fill)" isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

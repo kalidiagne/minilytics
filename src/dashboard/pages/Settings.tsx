@@ -8,6 +8,7 @@ import { buildAiPrompt } from '../lib/aiPrompt';
 import { api, type SetupStatus, type Site } from '../lib/api';
 import { useApi } from '../lib/useApi';
 import { fmtMoney } from '../lib/format';
+import { DatafastImport } from '../components/DatafastImport';
 
 const DOCS = 'https://github.com/surendrapandar/minilytics#';
 
@@ -303,6 +304,12 @@ window.minilytics('identify', { email: user.email, name: user.name });`}</Code>
           <button className="btn-dark mt-4" onClick={() => save({ name: form.name, domain: form.domain, timezone: form.timezone, currency: form.currency })}>
             Save changes
           </button>
+        </Section>
+      )}
+
+      {tab === 'site' && (
+        <Section title="Import data" desc="Import historical visitors, pageviews, sources and revenue from DataFast or Plausible CSV / ZIP exports.">
+          <DatafastImport site={site} onSuccess={() => { setSaved('Data imported!'); setTimeout(() => setSaved(''), 2000); }} />
         </Section>
       )}
 

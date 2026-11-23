@@ -1,6 +1,6 @@
 import { displayName } from '../../shared/names';
 import { useDash } from '../lib/context';
-import { countryName, fmtAgo, fmtDateTime, fmtDuration } from '../lib/format';
+import { countryName, fmtAgo, fmtDateTime, fmtDuration, fmtPaidIn } from '../lib/format';
 import { useApi } from '../lib/useApi';
 import { buildTimeline, fmtOffset } from '../lib/timeline';
 import { Avatar, BrowserIcon, DeviceIcon, Flag, OSIcon, SourceIcon } from './Icons';
@@ -150,6 +150,7 @@ function PaymentLine({ pay, when, money }: { pay: any; when?: string; money: (n:
   return (
     <span className="font-semibold text-revenue">
       {what} {money(Math.abs(pay.amount))}
+      {fmtPaidIn(pay) && <span className="font-normal text-stone-500"> (paid {fmtPaidIn(pay)})</span>}
       {when && <span className="ml-2 font-normal text-stone-500">{when}</span>}
     </span>
   );
