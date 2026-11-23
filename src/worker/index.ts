@@ -320,7 +320,12 @@ app.delete('/api/sites/:id/import/datafast', handleClearDatafastImport);
 app.get('/api/sites/:id/overview', async (c) => {
   // Payments recorded before conversion existed, or while exchange rates were unreachable.
   await convertForeignPayments(c.env.DB, c.get('site')).catch(() => 0);
-  return c.json(await overview(makeCtx(c)));
+  // Sites sending payments through the API have no webhook secret, so tell the dashboard they're set up.
+  const [data, any] = await Promise.all([
+    overview(makeCtx(c)),
+    c.env.DB.prepare('SELECT 1 FROM payments WHERE site_id = ? LIMIT 1').bind(c.get('site').id).first(),
+  ]);
+  return c.json({ ...data, hasPayments: !!any });
 });
 
 app.get('/api/sites/:id/breakdown', async (c) => {

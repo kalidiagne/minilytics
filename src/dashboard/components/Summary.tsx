@@ -1,4 +1,3 @@
-import { navigate } from '../App';
 import { qs, type BreakdownRow, type Overview } from '../lib/api';
 import { useDash } from '../lib/context';
 import { bucketLabel, countryName, fmtNumber, goalName } from '../lib/format';
@@ -18,7 +17,7 @@ export function Summary({ data, pins = [] }: { data: Overview | null; pins?: str
   const c = data.current;
   if (!c.visitors) return <p className="text-lg text-stone-600">No visitors in this period yet.</p>;
   const peak = data.series.reduce((a, b) => (b.visitors > a.visitors ? b : a), data.series[0]);
-  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || c.revenue || data.previous.revenue);
+  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || data.hasPayments || c.revenue || data.previous.revenue);
   const from = [channel, country && countryName(country)].filter(Boolean);
   const B = ({ children }: { children: React.ReactNode }) => <strong className="font-semibold text-ink">{children}</strong>;
 
@@ -43,17 +42,10 @@ export function Summary({ data, pins = [] }: { data: Overview | null; pins?: str
           </span>
         ))}
       {data.series.length > 1 && peak.visitors > 0 && <>Busiest: {bucketLabel(peak.bucket, data.range.granularity, true)}. </>}
-      {paid ? (
+      {/* No payments yet: the KPI card already offers to connect them (and can be hidden). */}
+      {paid && (
         <>
           <B>{money(c.revenue)}</B> in revenue.
-        </>
-      ) : (
-        <>
-          No revenue tracked yet:{' '}
-          <button className="font-medium text-amber-800 underline-offset-2 hover:underline" onClick={() => navigate(`/site/${site.id}/settings?tab=setup&step=payments`)}>
-            connect payments
-          </button>
-          .
         </>
       )}
     </p>

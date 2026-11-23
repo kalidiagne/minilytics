@@ -29,7 +29,10 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
   const c = data?.current;
   const p = data?.previous;
   // Revenue tiles only mean something once a payment source is connected (or payments arrived through the API).
-  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || c?.revenue || p?.revenue);
+  const paid = !!(site.dodo_webhook_secret || site.stripe_webhook_secret || data?.hasPayments || c?.revenue || p?.revenue);
+  // Sites that will never take payments can hide the prompt (per site, per browser).
+  const [noPayments, setNoPayments] = usePref(`ml_no_payments_${site.id}`, false);
+  const prompt = !paid && !noPayments;
   const hidden = paid ? prefHidden : { ...prefHidden, revenue: true };
   const bots = data?.bots;
 
@@ -52,10 +55,10 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
 
   return (
     <div className="card overflow-hidden">
-      <div className={`grid grid-cols-2 border-b border-stone-100 sm:grid-cols-4 ${paid ? 'lg:grid-cols-7' : 'lg:grid-cols-6'}`}>
+      <div className={`grid grid-cols-2 border-b border-stone-100 sm:grid-cols-4 ${paid ? 'lg:grid-cols-7' : prompt ? 'lg:grid-cols-6' : 'lg:grid-cols-4'}`}>
         {kpis.map((k, i) => (
           <Fragment key={k.key}>
-            <div className={`border-stone-100 px-5 py-4 lg:border-r ${i === 0 && !paid ? 'max-sm:col-span-2' : ''}`}>
+            <div className={`border-stone-100 px-5 py-4 lg:border-r ${i === 0 && prompt ? 'max-sm:col-span-2' : ''}`}>
               <button
                 className={`block w-full text-left ${k.metric ? '' : 'cursor-default'}`}
                 onClick={() => k.metric && setHidden((h) => ({ ...h, [k.metric!]: !h[k.metric!] }))}
@@ -79,17 +82,27 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
                 </button>
               )}
             </div>
-            {i === 0 && data && !paid && (
-              <button
-                className="col-span-2 flex flex-col justify-center gap-1 border-stone-100 bg-revenueSoft/30 px-5 py-4 text-left hover:bg-revenueSoft/50 lg:border-r"
-                onClick={() => navigate(`/site/${site.id}/settings?tab=setup&step=payments`)}
-              >
-                <span className="flex items-center gap-1.5 text-sm text-stone-500">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-revenue" /> Revenue · Conversion · Rev/visitor
-                </span>
-                <span className="font-semibold">Connect Stripe or Dodo to see which source pays</span>
-                <span className="text-sm font-medium text-amber-800">Set up payments →</span>
-              </button>
+            {i === 0 && data && prompt && (
+              <div className="relative col-span-2 border-stone-100 bg-revenueSoft/30 hover:bg-revenueSoft/50 lg:border-r">
+                <button
+                  className="flex h-full w-full flex-col justify-center gap-1 px-5 py-4 pr-10 text-left"
+                  onClick={() => navigate(`/site/${site.id}/settings?tab=setup&step=payments`)}
+                >
+                  <span className="flex items-center gap-1.5 text-sm text-stone-500">
+                    <span className="h-2.5 w-2.5 rounded-sm bg-revenue" /> Revenue · Conversion · Rev/visitor
+                  </span>
+                  <span className="font-semibold">Connect Stripe or Dodo to see which source pays</span>
+                  <span className="text-sm font-medium text-amber-800">Set up payments →</span>
+                </button>
+                <button
+                  className="absolute right-2 top-2 rounded-md px-1.5 text-lg leading-6 text-stone-400 hover:bg-revenueSoft hover:text-stone-600"
+                  onClick={() => setNoPayments(true)}
+                  title="Hide: this site doesn't take payments"
+                  aria-label="Hide the payments prompt"
+                >
+                  ×
+                </button>
+              </div>
             )}
           </Fragment>
         ))}

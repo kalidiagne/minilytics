@@ -68,6 +68,8 @@ export interface Overview {
   online: number;
   series: { bucket: string; visitors: number; pageviews: number; revenue: number; payments: number; bots: number }[];
   bots: { visitors: number; burst: number; datacenter: number; pages: { label: string | null; n: number }[] };
+  /** Any payment ever recorded for the site, in any period. */
+  hasPayments?: boolean;
 }
 
 /** What a site has set up so far, for the Setup checklist. Times are ms; null = not yet. */
