@@ -38,10 +38,10 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
 
   const kpis: { key: keyof Kpis | 'online'; label: string; value: string; invert?: boolean; metric?: Metric; dot?: string }[] = c
     ? [
-        { key: 'visitors', label: 'Visitors', value: fmtNumber(c.visitors), metric: 'visitors', dot: 'bg-visitors' },
+        { key: 'visitors', label: 'Visitors', value: fmtNumber(c.visitors), metric: 'visitors', dot: 'bg-[#6366f1]' },
         ...(paid
           ? ([
-              { key: 'revenue', label: 'Revenue', value: money(c.revenue, true), metric: 'revenue', dot: 'bg-revenue' },
+              { key: 'revenue', label: 'Revenue', value: money(c.revenue, true), metric: 'revenue', dot: 'bg-emerald-500' },
               { key: 'conversionRate', label: 'Conversion', value: fmtPct(c.conversionRate, c.conversionRate >= 0.1 ? 0 : 2) },
               { key: 'revenuePerVisitor', label: 'Rev/visitor', value: money(c.revenuePerVisitor) },
             ] as const)
@@ -89,7 +89,7 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
                   onClick={() => navigate(`/site/${site.id}/settings?tab=setup&step=payments`)}
                 >
                   <span className="flex items-center gap-1.5 text-sm text-stone-500">
-                    <span className="h-2.5 w-2.5 rounded-sm bg-revenue" /> Revenue · Conversion · Rev/visitor
+                    <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> Revenue · Conversion · Rev/visitor
                   </span>
                   <span className="font-semibold">Connect Stripe or Dodo to see which source pays</span>
                   <span className="text-sm font-medium text-amber-800">Set up payments →</span>
@@ -174,9 +174,9 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
                   return (
                     <div className="card min-w-[180px] px-4 py-3 text-sm">
                       <div className="mb-2 font-medium">{bucketLabel(d.bucket, g, true)}</div>
-                      <Row color="bg-visitors" label="Visitors" value={fmtNumber(d.visitors)} />
+                      <Row color="bg-[#6366f1]" label="Visitors" value={fmtNumber(d.visitors)} />
                       <Row color="bg-stone-300" label="Pageviews" value={fmtNumber(d.pageviews)} />
-                      {paid && <Row color="bg-revenue" label="Revenue" value={money(d.revenue)} />}
+                      {paid && <Row color="bg-emerald-500" label="Revenue" value={money(d.revenue)} />}
                       {showBots && <Row color="bg-stone-400" label="Bots, not counted" value={fmtNumber(d.bots)} />}
                       {d.payments > 0 && <Row color="bg-revenueSoft" label="Payments" value={String(d.payments)} />}
                     </div>
@@ -195,7 +195,7 @@ export function OverviewCard({ data, onLive }: { data: Overview | null; onLive: 
                   strokeWidth={2}
                   fill="url(#vis)"
                   dot={false}
-                  activeDot={{ r: 4, fill: '#7cb1ea', stroke: 'rgb(var(--surface))', strokeWidth: 2 }}
+                  activeDot={{ r: 4, fill: '#6366f1', stroke: 'rgb(var(--surface))', strokeWidth: 2 }}
                   isAnimationActive={false}
                 />
               )}

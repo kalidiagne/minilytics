@@ -1,3 +1,4 @@
+// Chart series: visitors #6366f1 (indigo), revenue emerald-500. KPI dots and tooltips use the same two so the legend matches the chart.
 // Colours that change in dark mode read CSS variables (set in styles.css), so components need no dark: classes.
 const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 const scale = (hue, shades) => Object.fromEntries(shades.map((n) => [n, v(`${hue}-${n}`)]));
