@@ -36,7 +36,7 @@ export function CopyField({ value }: { value: string }) {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 py-1.5 pl-3 pr-1.5">
       <code className="min-w-0 flex-1 truncate font-mono text-[13px]">{value}</code>
-      <CopyButton text={value} className={`${SMALL_BUTTON} border border-stone-200 bg-white hover:bg-stone-100`} />
+      <CopyButton text={value} className={`${SMALL_BUTTON} border border-stone-200 bg-surface hover:bg-stone-100`} />
     </div>
   );
 }

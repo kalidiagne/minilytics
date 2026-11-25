@@ -116,7 +116,7 @@ export function Dashboard({ siteId }: { siteId: string }) {
       <div className="mx-auto max-w-6xl px-4 pb-6 lg:pb-10">
         <h1 className="sr-only">{site.name}</h1>
         <div className="pt-8 sm:pt-12">
-          <AppHeader>
+          <AppHeader sticky={false}>
             <button className="btn" onClick={() => navigate(`/site/${site.id}/settings`)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <circle cx="12" cy="12" r="3" />

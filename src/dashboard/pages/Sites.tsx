@@ -72,13 +72,16 @@ export function Sites() {
             {me.user.email}
           </button>
         )}
-        <button className="btn" onClick={logout}>
-          Log out
+        <button className="btn max-sm:h-10 max-sm:w-10 max-sm:px-0" onClick={logout} title="Log out">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:hidden" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+          </svg>
+          <span className="max-sm:sr-only">Log out</span>
         </button>
-        <button className="btn" onClick={() => setConnecting(true)} title="Ask Claude, ChatGPT or Cursor about your analytics">
-          ✦ Connect AI
+        <button className="btn max-sm:h-10" onClick={() => setConnecting(true)} title="Ask Claude, ChatGPT or Cursor about your analytics">
+          ✦ <span className="max-sm:hidden">Connect </span>AI
         </button>
-        <button className="btn-dark" onClick={() => setAdding(true)}>
+        <button className="btn-dark max-sm:h-10" onClick={() => setAdding(true)}>
           + Add<span className="max-sm:hidden"> website</span>
         </button>
       </AppHeader>
@@ -127,10 +130,10 @@ export function Sites() {
         {sites?.map((s) => {
           const spark = bySite.get(s.id);
           return (
-            <button key={s.id} onClick={() => navigate(`/site/${s.id}`)} className="card p-5 text-left border border-zinc-200/80 shadow-sm transition hover:border-zinc-300 hover:shadow-md">
+            <button key={s.id} onClick={() => navigate(`/site/${s.id}`)} className="card min-w-0 p-5 text-left transition hover:border-stone-300 hover:shadow-md">
               <div className="flex items-center gap-3">
                 <Favicon domain={s.domain} size={22} />
-                <div className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900">{s.name}</div>
+                <div className="min-w-0 flex-1 truncate text-sm font-semibold">{s.name}</div>
                 {!!spark?.online && <Online n={spark.online} />}
               </div>
               <Sparkline series={spark?.series} />
@@ -139,7 +142,7 @@ export function Sites() {
           );
         })}
         {sites && !sites.length && (
-          <div className="card col-span-full p-10 text-center text-zinc-400">No websites yet. Add your first one to get a tracking snippet.</div>
+          <div className="card col-span-full p-10 text-center text-stone-500">No websites yet. Add your first one to get a tracking snippet.</div>
         )}
       </div>
       <AddSite open={adding} onClose={() => setAdding(false)} />
@@ -163,8 +166,8 @@ function SummaryStrip({ sites, sparks }: { sites: Site[]; sparks: SiteSpark[] | 
   const top = sparks?.reduce<SiteSpark | null>((a, s) => (!a || s.visitors > a.visitors ? s : a), null);
   const topSite = sites.find((s) => s.id === top?.id);
   const online = sparks?.reduce((n, s) => n + s.online, 0) ?? 0;
-  const cell = 'border-stone-100 px-5 py-4 sm:border-r last:border-r-0';
-  const big = 'mt-1 truncate text-[28px] font-semibold leading-tight tracking-tight';
+  const cell = 'min-w-0 border-stone-100 px-4 py-4 sm:px-5 lg:border-r lg:last:border-r-0 max-lg:odd:border-r max-lg:[&:nth-child(-n+2)]:border-b';
+  const big = 'mt-1 truncate text-2xl sm:text-[28px] font-semibold leading-tight tracking-tight';
   return (
     <div className="card mt-8 grid grid-cols-2 overflow-hidden lg:grid-cols-4">
       <div className={cell}>
@@ -183,7 +186,7 @@ function SummaryStrip({ sites, sparks }: { sites: Site[]; sparks: SiteSpark[] | 
       </div>
       <div className={cell}>
         <div className="text-sm text-stone-500">Top site</div>
-        <div className={big}>{topSite?.name ?? '—'}</div>
+        <div className={big} title={topSite?.name}>{topSite?.name ?? '—'}</div>
         {!!visitors && top && <div className="text-xs text-stone-500">{Math.round((top.visitors / visitors) * 100)}% of visitors</div>}
       </div>
       <div className={cell}>
@@ -204,10 +207,10 @@ function SitesTable({ sites, bySite }: { sites: Site[]; bySite: Map<string, Site
       <table className="w-full text-sm sm:min-w-[640px]">
         <thead>
           <tr className="text-left text-stone-500">
-            <th className="px-5 py-3 font-medium">Website</th>
+            <th className="px-4 py-3 font-medium sm:px-5">Website</th>
             <th className="px-3 py-3 font-medium max-sm:hidden">Trend</th>
-            <th className="px-3 py-3 text-right font-medium">Visitors ↓</th>
-            <th className="px-3 py-3 text-right font-medium">Revenue</th>
+            <th className="whitespace-nowrap px-3 py-3 text-right font-medium">Visitors<span aria-hidden="true"> ↓</span></th>
+            <th className="px-4 py-3 text-right font-medium sm:px-3">Revenue</th>
             <th className="px-5 py-3 text-right font-medium max-sm:hidden">Online</th>
           </tr>
         </thead>
@@ -217,23 +220,23 @@ function SitesTable({ sites, bySite }: { sites: Site[]; bySite: Map<string, Site
             const connected = !!(s.dodo_webhook_secret || s.stripe_webhook_secret || spark?.revenue);
             return (
               <tr key={s.id} className="cursor-pointer border-t border-stone-100 hover:bg-stone-50" onClick={() => navigate(`/site/${s.id}`)}>
-                <td className="px-5 py-2.5">
+                <td className="px-4 py-2.5 sm:px-5">
                   <button
-                    className="flex items-center gap-3 text-[15px] font-semibold"
+                    className="flex min-w-0 max-w-[44vw] items-center gap-3 text-left text-[15px] font-semibold sm:max-w-none"
                     onClick={(e) => {
                       e.stopPropagation(); // the row navigates too
                       navigate(`/site/${s.id}`);
                     }}
                   >
                     <Favicon domain={s.domain} size={20} />
-                    {s.name}
+                    <span className="truncate">{s.name}</span>
                   </button>
                 </td>
                 <td className="px-3 py-1 max-sm:hidden">
                   <Sparkline series={spark?.series} className="h-9 w-36" />
                 </td>
                 <td className="px-3 py-2.5 text-right text-[15px] font-semibold tabular-nums">{spark ? fmtNumber(spark.visitors) : '—'}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">
+                <td className="px-4 py-2.5 text-right tabular-nums text-stone-600 sm:px-3">
                   {!spark ? '—' : connected ? fmtMoney(spark.revenue, s.currency, currencyDecimals(s.currency), true) : (
                     // $0 means connected but no payments yet; this means no payment source at all.
                     <span className="text-stone-500" title="No payment source connected">

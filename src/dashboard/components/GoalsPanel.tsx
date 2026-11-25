@@ -31,7 +31,7 @@ export function GoalsPanel({
   const tabs = paid ? (['goal', 'funnel', 'user', 'journey'] as const) : (['goal', 'funnel', 'user'] as const);
   const tab: Tab = !paid && pref === 'journey' ? 'goal' : pref;
   return (
-    <div className="card p-4 border border-zinc-200/80 shadow-sm">
+    <div className="card min-w-0 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
         <div className="tabs">
           {tabs.map((t) => (
@@ -41,7 +41,7 @@ export function GoalsPanel({
           ))}
         </div>
         {(tab === 'user' || tab === 'journey') && (
-          <input className="input max-w-[220px]" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input sm:max-w-[220px]" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
         )}
       </div>
       {tab === 'goal' && <Goals totalVisitors={totalVisitors} prevVisitors={prevVisitors} paid={paid} pins={pins} setPins={setPins} />}
@@ -470,6 +470,37 @@ function VisitorCell({ id, name, email, country, city, device, os, browser, badg
   );
 }
 
+/** Phones: one tappable row per visitor instead of a wide table; the visitor sheet holds the detail. */
+function VisitorRow({ r, badge, meta, aside, onClick }: { r: Record<string, any>; badge?: React.ReactNode; meta: React.ReactNode; aside?: React.ReactNode; onClick?: () => void }) {
+  return (
+    <li>
+      <button className="flex w-full items-center gap-3 border-t border-stone-100 px-1 py-3 text-left disabled:cursor-default" onClick={onClick} disabled={!onClick}>
+        <Avatar id={r.visitor_id ?? r.id} size={40} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate font-medium">{displayName(r.visitor_id ?? r.id, r.name ?? r.pay_name, r.email ?? r.pay_email)}</span>
+            {badge}
+          </span>
+          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-stone-500">
+            <Flag cc={r.country} size={14} />
+            <span className="truncate">
+              {r.city ? `${r.city}, ` : ''}
+              {countryName(r.country)}
+            </span>
+            {r.device && <DeviceIcon name={r.device} size={14} />}
+          </span>
+          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-stone-500">{meta}</span>
+        </span>
+        {aside && <span className="max-w-[5.5rem] shrink-0 self-start pt-0.5 text-right text-sm font-medium">{aside}</span>}
+      </button>
+    </li>
+  );
+}
+
+const CustomerBadge = ({ label = 'Customer' }: { label?: string }) => (
+  <span className="shrink-0 rounded-md border border-revenue/30 bg-revenueSoft/50 px-1.5 py-0.5 text-xs text-revenue">{label}</span>
+);
+
 function matches(r: Record<string, any>, search: string) {
   if (!search) return true;
   const s = search.toLowerCase();
@@ -505,8 +536,9 @@ function Journey({ search }: { search: string }) {
   if (!data.length)
     return <div className="p-8 text-center text-sm text-stone-500">No payments in this period. Connect Dodo Payments or Stripe in site settings to see who paid and where they came from.</div>;
   const unmatched = data.filter((r) => !r.visitor_id).length;
+  const rows = data.filter((r) => matches(r, search)).slice(0, all || search ? undefined : 10);
   return (
-    <div className="overflow-x-auto">
+    <div>
       {unmatched > 0 && (
         <div className="mx-3 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span>
@@ -542,7 +574,27 @@ function Journey({ search }: { search: string }) {
           )}
         </div>
       )}
-      <table className="w-full min-w-[760px] text-[15px]">
+      <ul className="sm:hidden">
+        {rows.map((r) => (
+          <VisitorRow
+            key={r.id}
+            r={r}
+            badge={<CustomerBadge label={r.renewal ? 'Returning' : 'Customer'} />}
+            onClick={r.visitor_id ? () => openVisitor(r.visitor_id) : undefined}
+            aside={money(r.amount)}
+            meta={
+              <>
+                {r.session_id ? <SourceIcon source={r.source} domain={r.referrer_domain} size={13} /> : null}
+                <span className="truncate">
+                  {r.session_id ? r.source : 'Not attributed'} · {fmtDateTime(r.ts, site.timezone)}
+                </span>
+              </>
+            }
+          />
+        ))}
+      </ul>
+      <div className="overflow-x-auto max-sm:hidden">
+      <table className="w-full min-w-[720px] text-[15px]">
         <thead>
           <tr className="text-left text-sm text-stone-500">
             <th className="px-3 pb-3 font-medium">Visitor</th>
@@ -553,10 +605,7 @@ function Journey({ search }: { search: string }) {
           </tr>
         </thead>
         <tbody>
-          {data
-            .filter((r) => matches(r, search))
-            .slice(0, all || search ? undefined : 10)
-            .map((r) => (
+          {rows.map((r) => (
               <tr
                 key={r.id}
                 className={`border-t border-stone-100 ${r.visitor_id ? 'cursor-pointer hover:bg-stone-50' : ''}`}
@@ -572,11 +621,7 @@ function Journey({ search }: { search: string }) {
                     device={r.device}
                     os={r.os}
                     browser={r.browser}
-                    badge={
-                      <span className="rounded-md border border-revenue/30 bg-revenueSoft/50 px-1.5 py-0.5 text-xs text-revenue">
-                        {r.renewal ? 'Returning' : 'Customer'}
-                      </span>
-                    }
+                        badge={<CustomerBadge label={r.renewal ? 'Returning' : 'Customer'} />}
                   />
                 </td>
                 <td className="py-4">
@@ -616,6 +661,7 @@ function Journey({ search }: { search: string }) {
             ))}
         </tbody>
       </table>
+      </div>
       {!search && <ShowAll total={data.length} shown={all ? data.length : 10} onClick={() => setAll(true)} />}
     </div>
   );
@@ -627,9 +673,35 @@ function Users({ search }: { search: string }) {
   const { data } = useApi<any[]>(`/api/sites/${site.id}/visitors?${qs(q)}`, reloadKey);
   if (!data) return <div className="h-40 animate-pulse" />;
   if (!data.length) return <div className="p-8 text-center text-sm text-stone-500">No visitors in this period.</div>;
+  const rows = data.filter((r) => matches(r, search)).slice(0, all || search ? undefined : 10);
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-[15px]">
+    <div>
+      <ul className="sm:hidden">
+        {rows.map((r) => (
+          <VisitorRow
+            key={r.visitor_id}
+            r={r}
+            badge={r.spent > 0 ? <CustomerBadge /> : null}
+            onClick={() => openVisitor(r.visitor_id)}
+            aside={
+              <>
+                {r.spent ? <span className="block text-revenue">{money(r.spent)}</span> : null}
+                <span className="block text-xs font-normal text-stone-500">{fmtAgo(Date.now() - r.last_seen)} ago</span>
+              </>
+            }
+            meta={
+              <>
+                <SourceIcon source={r.source} domain={r.referrer_domain} size={13} />
+                <span className="truncate">
+                  {r.source ?? 'Direct'} · {r.sessions} visit{r.sessions === 1 ? '' : 's'} · {r.pageviews} page{r.pageviews === 1 ? '' : 's'} · {fmtDuration(r.duration)}
+                </span>
+              </>
+            }
+          />
+        ))}
+      </ul>
+      <div className="overflow-x-auto max-sm:hidden">
+      <table className="w-full min-w-[720px] text-[15px]">
         <thead>
           <tr className="text-left text-sm text-stone-500">
             <th className="px-3 pb-3 font-medium">Visitor</th>
@@ -642,10 +714,7 @@ function Users({ search }: { search: string }) {
           </tr>
         </thead>
         <tbody>
-          {data
-            .filter((r) => matches(r, search))
-            .slice(0, all || search ? undefined : 10)
-            .map((r) => (
+          {rows.map((r) => (
               <tr key={r.visitor_id} className="cursor-pointer border-t border-stone-100 hover:bg-stone-50" onClick={() => openVisitor(r.visitor_id)}>
                 <td className="px-3 py-3">
                   <VisitorCell
@@ -657,7 +726,7 @@ function Users({ search }: { search: string }) {
                     device={r.device}
                     os={r.os}
                     browser={r.browser}
-                    badge={r.spent > 0 ? <span className="rounded-md border border-revenue/30 bg-revenueSoft/50 px-1.5 py-0.5 text-xs text-revenue">Customer</span> : null}
+                    badge={r.spent > 0 ? <CustomerBadge /> : null}
                   />
                 </td>
                 <td className="py-3">
@@ -669,11 +738,12 @@ function Users({ search }: { search: string }) {
                 <td className="py-3 text-right">{r.pageviews}</td>
                 <td className="py-3 text-right">{fmtDuration(r.duration)}</td>
                 <td className="py-3 text-right">{r.spent ? money(r.spent) : '—'}</td>
-                <td className="px-3 py-3 text-right text-stone-500">{fmtAgo(Date.now() - r.last_seen)} ago</td>
+                <td className="whitespace-nowrap px-3 py-3 text-right text-stone-500">{fmtAgo(Date.now() - r.last_seen)} ago</td>
               </tr>
             ))}
         </tbody>
       </table>
+      </div>
       {!search && <ShowAll total={data.length} shown={all ? data.length : 10} onClick={() => setAll(true)} />}
     </div>
   );
