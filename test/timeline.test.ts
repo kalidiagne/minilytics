@@ -29,6 +29,27 @@ describe('visitor timeline', () => {
     expect(v2.steps.map((s) => s.type)).toEqual(['pageview', 'goal', 'payment']);
   });
 
+  it('can list newest first, with gaps read backwards', () => {
+    const t0 = Date.UTC(2026, 10, 1, 10);
+    const items = buildTimeline(
+      {
+        sessions: [
+          { id: 's2', started_at: t0 + 5 * H, last_seen_at: t0 + 5 * H + 60_000 },
+          { id: 's1', started_at: t0, last_seen_at: t0 + 60_000 },
+        ],
+        events: [
+          { session_id: 's2', ts: t0 + 5 * H + 30_000, type: 'pageview', name: null, path: '/b' },
+          { session_id: 's2', ts: t0 + 5 * H, type: 'pageview', name: null, path: '/a' },
+        ],
+        payments: [],
+      },
+      true,
+    );
+    expect(items.map((i) => (i.kind === 'visit' ? `visit${i.n}` : i.kind))).toEqual(['visit2', 'gap', 'visit1']);
+    expect((items[1] as { label: string }).label).toMatch(/earlier$/);
+    expect((items[0] as Extract<(typeof items)[0], { kind: 'visit' }>).steps.map((s) => s.path)).toEqual(['/a', '/b']);
+  });
+
   it('formats offsets from the visit start', () => {
     expect(fmtOffset(42_000)).toBe('42s');
     expect(fmtOffset(185_000)).toBe('3:05');

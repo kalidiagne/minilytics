@@ -12,6 +12,9 @@
   --red-50: 254 242 242; --red-200: 254 202 202; --red-700: 185 28 28;
   --emerald-50: 236 253 245; --emerald-800: 6 95 70;
   --violet-50: 245 243 255; --violet-200: 221 214 254; --violet-700: 109 40 217;
+  --amber-500: 245 158 11; --red-500: 239 68 68; --red-600: 220 38 38;
+  --emerald-100: 209 250 229; --emerald-200: 167 243 208; --emerald-500: 16 185 129; --emerald-600: 5 150 105; --emerald-700: 4 120 87;
+  --indigo-50: 238 242 255; --indigo-100: 224 231 255; --sky-50: 240 249 255; --sky-700: 3 105 161;
 }
 .dark {
   color-scheme: dark;
@@ -23,6 +26,9 @@
   --red-50: 58 22 22; --red-200: 110 36 36; --red-700: 252 165 165;
   --emerald-50: 13 46 36; --emerald-800: 110 231 183;
   --violet-50: 38 30 66; --violet-200: 76 60 130; --violet-700: 196 181 253;
+  --amber-500: 245 158 11; --red-500: 248 113 113; --red-600: 252 165 165;
+  --emerald-100: 20 64 50; --emerald-200: 28 90 70; --emerald-500: 16 185 129; --emerald-600: 52 211 153; --emerald-700: 4 120 87;
+  --indigo-50: 42 42 74; --indigo-100: 55 55 98; --sky-50: 16 40 58; --sky-700: 125 211 252;
 }
 
 html, body { background: rgb(var(--paper)); color: rgb(var(--ink)); }
@@ -39,3 +45,7 @@ body { font-feature-settings: 'tnum' 1; -webkit-font-smoothing: antialiased; }
   .tab-active { @apply bg-surface text-ink shadow-card; }
   .code { @apply block overflow-x-auto whitespace-pre rounded-xl bg-stone-900 p-4 font-mono text-[13px] leading-relaxed text-stone-100; }
 }
+
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Long unbroken text (paths, referrers) must never widen the page. */
+html, body { overflow-x: clip; }

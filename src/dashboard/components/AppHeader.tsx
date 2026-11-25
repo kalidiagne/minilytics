@@ -9,9 +9,24 @@ export interface Crumb {
 }
 
 /** The same top bar on every signed-in page: logo (home), where you are, and page actions on the right. */
-export function AppHeader({ crumbs = [], children, theme = true }: { crumbs?: Crumb[]; children?: ReactNode; theme?: boolean }) {
+export function AppHeader({
+  crumbs = [],
+  children,
+  theme = true,
+  sticky = true,
+}: {
+  crumbs?: Crumb[];
+  children?: ReactNode;
+  theme?: boolean;
+  /** Stays at the top while scrolling. Off where the page has its own sticky bar (the site dashboard). */
+  sticky?: boolean;
+}) {
   return (
-    <header className="flex min-h-[40px] items-center justify-between gap-3">
+    <header
+      className={`flex min-h-[40px] items-center justify-between gap-3 ${
+        sticky ? 'sticky top-0 z-30 -mx-4 -my-2 border-b border-stone-200/60 bg-paper/85 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-paper/70' : ''
+      }`}
+    >
       <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-2 text-[15px]">
         <a
           href="/"
@@ -22,7 +37,7 @@ export function AppHeader({ crumbs = [], children, theme = true }: { crumbs?: Cr
           aria-label="All websites"
           className="shrink-0 rounded-lg"
         >
-          <Logo iconOnPhone={crumbs.length > 0} />
+          <Logo iconOnPhone={crumbs.length > 0 || !!children} />
         </a>
         {crumbs.map((c, i) => (
           <Fragment key={i}>

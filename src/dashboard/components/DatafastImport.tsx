@@ -211,7 +211,7 @@ export function DatafastImport({ site, onSuccess }: Props) {
       </div>
 
       {loading && (
-        <div className="rounded-xl border border-stone-200 bg-white p-4">
+        <div className="rounded-xl border border-stone-200 bg-surface p-4">
           <div className="flex items-center justify-between text-sm text-stone-600 mb-2">
             <span>{statusMessage || 'Processing...'}</span>
             {progress !== null && <span>{progress}%</span>}
@@ -244,25 +244,25 @@ export function DatafastImport({ site, onSuccess }: Props) {
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-xs">
-            <div className="rounded-lg bg-white p-2.5 shadow-sm border border-stone-100">
+            <div className="rounded-lg bg-surface p-2.5 shadow-sm border border-stone-100">
               <div className="text-stone-500">Visitors</div>
               <div className="text-base font-semibold text-stone-900 mt-0.5">
                 {preview.summary.totalVisitors.toLocaleString()}
               </div>
             </div>
-            <div className="rounded-lg bg-white p-2.5 shadow-sm border border-stone-100">
+            <div className="rounded-lg bg-surface p-2.5 shadow-sm border border-stone-100">
               <div className="text-stone-500">Pageviews</div>
               <div className="text-base font-semibold text-stone-900 mt-0.5">
                 {preview.summary.totalPageviews.toLocaleString()}
               </div>
             </div>
-            <div className="rounded-lg bg-white p-2.5 shadow-sm border border-stone-100">
+            <div className="rounded-lg bg-surface p-2.5 shadow-sm border border-stone-100">
               <div className="text-stone-500">Revenue</div>
               <div className="text-base font-semibold text-emerald-600 mt-0.5">
                 {site.currency} {(preview.summary.totalRevenue / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
             </div>
-            <div className="rounded-lg bg-white p-2.5 shadow-sm border border-stone-100">
+            <div className="rounded-lg bg-surface p-2.5 shadow-sm border border-stone-100">
               <div className="text-stone-500">Payments</div>
               <div className="text-base font-semibold text-stone-900 mt-0.5">
                 {preview.summary.totalPayments.toLocaleString()}
@@ -328,7 +328,7 @@ export function DatafastImport({ site, onSuccess }: Props) {
             <button
               onClick={clearImportedData}
               disabled={loading}
-              className="text-xs px-2.5 py-1 text-red-600 bg-white border border-red-200 rounded hover:bg-red-50 font-medium transition-colors"
+              className="text-xs px-2.5 py-1 text-red-600 bg-surface border border-red-200 rounded hover:bg-red-50 font-medium transition-colors"
             >
               Clear imported DataFast data
             </button>

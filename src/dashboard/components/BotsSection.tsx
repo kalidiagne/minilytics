@@ -14,8 +14,8 @@ export function BotsSection({ bots }: { bots: Overview['bots'] | undefined }) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="font-semibold">Bots</h3>
-          <div className="tabs">
-            <button className={`tab ${active === 'filtered' ? 'tab-active' : ''}`} onClick={() => setTab('filtered')}>
+          <div className="tabs max-w-full overflow-x-auto">
+            <button className={`tab whitespace-nowrap ${active === 'filtered' ? 'tab-active' : ''}`} onClick={() => setTab('filtered')}>
               Filtered from visitors <span className="tabular-nums text-stone-500">{fmtNumber(filtered)}</span>
             </button>
             <button className={`tab ${active === 'crawlers' ? 'tab-active' : ''}`} onClick={() => setTab('crawlers')}>
@@ -34,12 +34,12 @@ export function BotsSection({ bots }: { bots: Overview['bots'] | undefined }) {
           <div className="grid gap-4 sm:grid-cols-3">
             <Stat label="Burst" value={bots!.burst} note="Blank one-page visits arriving 3+ a minute" />
             <Stat label="Datacenter" value={bots!.datacenter} note="Cloud networks, under 10s and no goal" />
-            <div className="rounded-xl border border-stone-100 p-4">
+            <div className="min-w-0 rounded-xl border border-stone-100 p-4">
               <div className="text-sm text-stone-500">Pages they landed on</div>
               <ul className="mt-1 space-y-0.5 text-sm">
                 {bots!.pages.map((p) => (
                   <li key={p.label ?? ''} className="flex justify-between gap-3">
-                    <span className="truncate">{p.label ?? '(unknown)'}</span>
+                    <span className="min-w-0 truncate" title={p.label ?? undefined}>{p.label ?? '(unknown)'}</span>
                     <span className="font-medium tabular-nums">{fmtNumber(p.n)}</span>
                   </li>
                 ))}

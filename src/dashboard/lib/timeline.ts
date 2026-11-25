@@ -24,8 +24,8 @@ interface Sess {
 export type Step = { ts: number; type: string; name?: string | null; path?: string; dwell: number | null; pay?: Pay };
 export type Item = { kind: 'visit'; n: number; s: Sess; steps: Step[] } | { kind: 'payment'; pay: Pay } | { kind: 'gap'; label: string };
 
-/** Visits oldest first, each with its steps in order; payments placed at their time; gaps between visits. */
-export function buildTimeline(p: { sessions: Sess[]; events: Ev[]; payments: Pay[] }): Item[] {
+/** Visits oldest first (or newest first), each with its steps in order; payments placed at their time; gaps between visits. */
+export function buildTimeline(p: { sessions: Sess[]; events: Ev[]; payments: Pay[] }, newestFirst = false): Item[] {
   const sessions = [...p.sessions].sort((a, b) => a.started_at - b.started_at);
   const bySession = new Map<string, Ev[]>();
   for (const e of p.events) {
@@ -57,11 +57,12 @@ export function buildTimeline(p: { sessions: Sess[]; events: Ev[]; payments: Pay
       const prev = ordered[i - 1];
       const prevEnd = prev.kind === 'visit' ? prev.s.last_seen_at : at(prev);
       const gap = at(it) - prevEnd;
-      if (gap > 60 * 60_000) out.push({ kind: 'gap', label: `${fmtAgo(gap)} later` });
+      if (gap > 60 * 60_000) out.push({ kind: 'gap', label: `${fmtAgo(gap)} ${newestFirst ? 'earlier' : 'later'}` });
     }
     out.push(it);
   });
-  return out;
+  // Steps inside a visit stay in reading order either way.
+  return newestFirst ? out.reverse() : out;
 }
 
 /** 42s, 3:05, 1:02:10 */
