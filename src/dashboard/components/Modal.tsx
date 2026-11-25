@@ -34,7 +34,7 @@ export function Modal({
       aria-modal="true"
     >
       <div
-        className={`card flex max-h-[92dvh] w-full ${width} animate-[sheet-up_.22s_ease-out] flex-col overflow-hidden rounded-b-none p-0 motion-reduce:animate-none sm:max-h-[calc(100dvh-5rem)] sm:animate-none sm:rounded-b-2xl`}
+        className={`card flex max-h-[92dvh] shadow-2xl w-full ${width} animate-[sheet-up_.22s_ease-out] flex-col overflow-hidden rounded-b-none p-0 motion-reduce:animate-none sm:max-h-[calc(100dvh-5rem)] sm:animate-none sm:rounded-b-2xl`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-stone-300 sm:hidden" aria-hidden="true" />
