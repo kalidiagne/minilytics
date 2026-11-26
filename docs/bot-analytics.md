@@ -20,7 +20,7 @@ await fetch('https://YOUR-MINILYTICS-HOST/api/v1/bots', {
 
 Keep this key on the server. Use your framework's supported background-task mechanism to avoid delaying page responses, and handle reporting failures without failing the page request. Report once per request; retries are counted separately. Requests served from a cache before your reporting code executes are not observed.
 
-Only HTTP(S) URLs matching the key's site or its subdomains are accepted. Ordinary browser user agents are ignored. Stored data contains receipt time, bot label/category, hostname and normalized path; query strings, IPs and raw user agents are not stored. Classification is based on user-agent strings and can be spoofed. Data is retained until the site is deleted; consider storage usage before enabling high-volume reporting.
+Only HTTP(S) URLs matching the key's site or its subdomains are accepted. Ordinary browser user agents are ignored. So are requests that are not pages: `/api/`, `/_next/`, `/static/` and `/assets/` paths, and scripts, styles, source maps, images and fonts (robots.txt, sitemaps, feeds, llms.txt and `/.well-known/` are kept). Stored data contains receipt time, bot label/category, hostname and normalized path; query strings, IPs and raw user agents are not stored. Classification is based on user-agent strings and can be spoofed. Data is retained until the site is deleted; consider storage usage before enabling high-volume reporting.
 
 Apply local migrations, start the dev server, then run `node scripts/smoke-bots.mjs` to test collection and isolation with temporary sites. Before deployment, apply migration `0010_bot_requests.sql` through the normal deployment workflow.
 

@@ -7,6 +7,7 @@ import type { Env } from '../src/worker/env';
 import { verifyStandardWebhook, verifyStripeWebhook } from '../src/worker/lib/crypto';
 import { bucketLabels, granularitiesForSpan, resolveRange, startOfDay, tzOffset } from '../src/worker/lib/time';
 import { isBot, parseUA } from '../src/worker/lib/ua';
+import { isNoisePath } from '../src/worker/bots';
 
 describe('classify', () => {
   it('maps t.co to X / social', () => {
@@ -166,5 +167,14 @@ describe('price tiers', () => {
   });
   it('keeps selling the last buyable tier when the next price has no product yet', async () => {
     expect(await planInfo(env(12))).toMatchObject({ price: '$49', spotsLeft: null, nextPrice: '$100' });
+  });
+});
+
+describe('isNoisePath', () => {
+  it('drops API calls and assets, keeps pages and crawler files', () => {
+    for (const p of ['/api/auth/get-session', '/_next/static/chunks/index.json', '/static/chunks/a.js', '/x.css', '/logo.PNG', '/f.woff2'])
+      expect(isNoisePath(p), p).toBe(true);
+    for (const p of ['/', '/blog', '/robots.txt', '/sitemap.xml', '/llms.txt', '/.well-known/ai-catalog.json', '/feed/rss', '/apiary'])
+      expect(isNoisePath(p), p).toBe(false);
   });
 });
