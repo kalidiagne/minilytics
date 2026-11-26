@@ -33,6 +33,14 @@ export function classifyBot(ua: string): { bot: string; category: string } | nul
   return ua && isBot(ua) ? { bot: 'Other bot', category: 'Other' } : null;
 }
 
+/** Paths that are not pages: API calls, build assets, images and fonts. Bots probe them, but they
+ * crowd the Pages view. robots.txt, sitemaps, feeds, llms.txt and /.well-known stay: they show what crawlers read.
+ * ponytail: fixed list; make it a per-site setting if a site wants its API crawls counted. */
+const NOISE_PATH = /^\/(api|_next|static|assets)\/|\.(js|mjs|css|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf)$/i;
+export function isNoisePath(path: string): boolean {
+  return NOISE_PATH.test(path);
+}
+
 export async function collectBot(c: Context<AppEnv>) {
   const key = /^Bearer\s+(.+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
   if (!key) return c.json({ error: 'Invalid API key' }, 401);
@@ -51,7 +59,7 @@ export async function collectBot(c: Context<AppEnv>) {
   if (!/^https?:$/.test(url.protocol) || !belongsTo(url.hostname, site.domain))
     return c.json({ error: 'URL must belong to this site' }, 403);
   const bot = classifyBot(b.user_agent);
-  if (!bot) return c.body(null, 202);
+  if (!bot || isNoisePath(url.pathname)) return c.body(null, 202);
   await c.env.DB.prepare('INSERT INTO bot_requests (site_id, ts, bot, category, hostname, path) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(site.id, Date.now(), bot.bot, bot.category, url.hostname, normalizePath(url.pathname)).run();
   return c.body(null, 202);
